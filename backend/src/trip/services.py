@@ -33,3 +33,31 @@ def calculate_fare(*, origin, destination, seats_available):
     total_cost = Decimal(distance_km) * _COST_PER_KM
     fare = total_cost / Decimal(seats_available + 1)
     return fare.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+from django.utils import timezone
+from rest_framework.exceptions import ValidationError
+
+from trip.models import Trip
+
+
+def trip_create(*, driver, origin, destination, departure_at, seats_available):
+    """Cria uma viagem aplicando regras de negócio e calculando o rateio."""
+    if departure_at <= timezone.now():
+        raise ValidationError({"departure_at": "A data/hora da viagem deve ser futura."})
+    if seats_available < 1:
+        raise ValidationError({"seats_available": "Deve haver ao menos 1 vaga."})
+
+    price = calculate_fare(
+        origin=origin,
+        destination=destination,
+        seats_available=seats_available,
+    )
+    return Trip.objects.create(
+        driver=driver,
+        origin=origin,
+        destination=destination,
+        departure_at=departure_at,
+        seats_available=seats_available,
+        price=price,
+    )

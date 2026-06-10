@@ -32,3 +32,54 @@ class CalculateFareTests(APITestCase):
     def test_rejects_invalid_seats(self):
         with self.assertRaises(ValueError):
             calculate_fare(origin="Teresina", destination="Parnaiba", seats_available=0)
+
+
+from rest_framework.exceptions import ValidationError
+
+from trip.models import Trip
+from trip.services import trip_create
+
+User = get_user_model()
+
+
+class TripCreateServiceTests(APITestCase):
+    def setUp(self):
+        self.driver = User.objects.create_user(username="motorista", password="x")
+
+    def test_creates_trip_with_calculated_price(self):
+        departure = timezone.now() + timedelta(days=1)
+        trip = trip_create(
+            driver=self.driver,
+            origin="Teresina",
+            destination="Parnaiba",
+            departure_at=departure,
+            seats_available=2,
+        )
+        self.assertIsInstance(trip, Trip)
+        self.assertEqual(trip.driver, self.driver)
+        self.assertEqual(trip.price, Decimal("33.90"))
+        self.assertEqual(Trip.objects.count(), 1)
+
+    def test_rejects_past_departure(self):
+        past = timezone.now() - timedelta(hours=1)
+        with self.assertRaises(ValidationError):
+            trip_create(
+                driver=self.driver,
+                origin="Teresina",
+                destination="Parnaiba",
+                departure_at=past,
+                seats_available=2,
+            )
+        self.assertEqual(Trip.objects.count(), 0)
+
+    def test_rejects_zero_seats(self):
+        departure = timezone.now() + timedelta(days=1)
+        with self.assertRaises(ValidationError):
+            trip_create(
+                driver=self.driver,
+                origin="Teresina",
+                destination="Parnaiba",
+                departure_at=departure,
+                seats_available=0,
+            )
+        self.assertEqual(Trip.objects.count(), 0)
