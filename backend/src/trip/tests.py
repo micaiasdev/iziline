@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.http import Http404
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APITestCase
@@ -188,3 +189,90 @@ class TripSerializerTests(APITestCase):
         })
         self.assertFalse(serializer.is_valid())
         self.assertIn("seats_available", serializer.errors)
+
+
+class TripEndpointTests(APITestCase):
+    def setUp(self):
+        self.driver = User.objects.create_user(username="motorista", password="x")
+        self.future = timezone.now() + timedelta(days=1)
+
+    # --- POST /api/trips/ ---
+    def test_create_requires_authentication(self):
+        url = reverse("trip-list-create")
+        response = self.client.post(url, {
+            "origin": "Teresina",
+            "destination": "Parnaiba",
+            "departure_at": self.future.isoformat(),
+            "seats_available": 2,
+        }, format="json")
+        self.assertEqual(response.status_code, 401)
+
+    def test_create_returns_201_with_calculated_price(self):
+        self.client.force_authenticate(self.driver)
+        url = reverse("trip-list-create")
+        response = self.client.post(url, {
+            "origin": "Teresina",
+            "destination": "Parnaiba",
+            "departure_at": self.future.isoformat(),
+            "seats_available": 2,
+        }, format="json")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["price"], "33.90")
+        self.assertEqual(response.data["driver_name"], "motorista")
+
+    def test_create_rejects_past_departure_with_400(self):
+        self.client.force_authenticate(self.driver)
+        url = reverse("trip-list-create")
+        response = self.client.post(url, {
+            "origin": "Teresina",
+            "destination": "Parnaiba",
+            "departure_at": (timezone.now() - timedelta(hours=1)).isoformat(),
+            "seats_available": 2,
+        }, format="json")
+        self.assertEqual(response.status_code, 400)
+
+    # --- GET /api/trips/ ---
+    def test_list_returns_paginated_bookable_trips(self):
+        self.client.force_authenticate(self.driver)
+        Trip.objects.create(
+            driver=self.driver, origin="Teresina", destination="Parnaiba",
+            departure_at=self.future, seats_available=3, price=Decimal("10.00"),
+        )
+        url = reverse("trip-list-create")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("results", response.data)
+        self.assertEqual(len(response.data["results"]), 1)
+
+    def test_list_filters_by_origin(self):
+        self.client.force_authenticate(self.driver)
+        Trip.objects.create(
+            driver=self.driver, origin="Teresina", destination="Picos",
+            departure_at=self.future, seats_available=3, price=Decimal("10.00"),
+        )
+        Trip.objects.create(
+            driver=self.driver, origin="Floriano", destination="Picos",
+            departure_at=self.future, seats_available=3, price=Decimal("10.00"),
+        )
+        url = reverse("trip-list-create")
+        response = self.client.get(url, {"origin": "teres"})
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["origin"], "Teresina")
+
+    # --- GET /api/trips/{id}/ ---
+    def test_detail_returns_200(self):
+        self.client.force_authenticate(self.driver)
+        trip = Trip.objects.create(
+            driver=self.driver, origin="Teresina", destination="Parnaiba",
+            departure_at=self.future, seats_available=3, price=Decimal("10.00"),
+        )
+        url = reverse("trip-detail", args=[trip.id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["id"], trip.id)
+
+    def test_detail_returns_404_when_missing(self):
+        self.client.force_authenticate(self.driver)
+        url = reverse("trip-detail", args=[999999])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)
