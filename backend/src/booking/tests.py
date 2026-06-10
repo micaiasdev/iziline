@@ -11,6 +11,7 @@ from rest_framework.test import APITestCase
 from trip.models import Trip
 from booking.models import Booking
 from booking.services import booking_create
+from booking.selectors import user_agenda
 
 User = get_user_model()
 
@@ -98,3 +99,53 @@ class BookingCreateServiceTests(APITestCase):
         self.trip.save()
         with self.assertRaises(ValidationError):
             booking_create(trip_id=self.trip.id, passenger=self.passenger)
+
+
+class UserAgendaSelectorTests(APITestCase):
+    def setUp(self):
+        self.driver = User.objects.create_user(username="motorista3", password="x")
+        self.me = User.objects.create_user(username="eu3", password="x")
+        self.future = timezone.now() + timedelta(days=2)
+
+    def _trip(self, driver, **overrides):
+        defaults = dict(
+            origin="Teresina", destination="Parnaiba", departure_at=self.future,
+            seats_available=3, price=Decimal("10.00"),
+        )
+        defaults.update(overrides)
+        return Trip.objects.create(driver=driver, **defaults)
+
+    def test_includes_driver_and_passenger_roles(self):
+        mine_as_driver = self._trip(self.me)
+        others = self._trip(self.driver)
+        Booking.objects.create(trip=others, passenger=self.me)
+        results = list(user_agenda(user=self.me, when="upcoming"))
+        roles = {t.id: t.role for t in results}
+        self.assertEqual(roles[mine_as_driver.id], "driver")
+        self.assertEqual(roles[others.id], "passenger")
+        self.assertEqual(len(results), 2)
+
+    def test_excludes_cancelled_bookings(self):
+        others = self._trip(self.driver)
+        booking = Booking.objects.create(trip=others, passenger=self.me)
+        booking.is_cancelled = True
+        booking.save()
+        results = [t.id for t in user_agenda(user=self.me, when="upcoming")]
+        self.assertNotIn(others.id, results)
+
+    def test_no_duplicate_trips_when_multiple_bookings(self):
+        mine = self._trip(self.me)
+        other_passenger = User.objects.create_user(username="outro3", password="x")
+        Booking.objects.create(trip=mine, passenger=other_passenger)
+        results = [t.id for t in user_agenda(user=self.me, when="upcoming")]
+        self.assertEqual(results.count(mine.id), 1)
+
+    def test_split_upcoming_and_past(self):
+        past = self._trip(self.me, departure_at=timezone.now() - timedelta(days=1))
+        upcoming = self._trip(self.me)
+        past_ids = [t.id for t in user_agenda(user=self.me, when="past")]
+        upcoming_ids = [t.id for t in user_agenda(user=self.me, when="upcoming")]
+        self.assertIn(past.id, past_ids)
+        self.assertNotIn(upcoming.id, past_ids)
+        self.assertIn(upcoming.id, upcoming_ids)
+        self.assertNotIn(past.id, upcoming_ids)
