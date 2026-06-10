@@ -26,6 +26,8 @@ def calculate_fare(*, origin, destination, seats_available):
     rateio = custo_total / (seats_available + 1)  # passageiros + motorista
     Retorna Decimal arredondado a 2 casas.
     """
+    if seats_available < 1:
+        raise ValueError(f"seats_available deve ser >= 1, recebido {seats_available}")
     key = frozenset({_normalize_city(origin), _normalize_city(destination)})
     distance_km = _KNOWN_DISTANCES_KM.get(key, _DEFAULT_DISTANCE_KM)
     total_cost = Decimal(distance_km) * _COST_PER_KM

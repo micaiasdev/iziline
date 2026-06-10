@@ -28,3 +28,7 @@ class CalculateFareTests(APITestCase):
     def test_result_has_two_decimal_places(self):
         fare = calculate_fare(origin="Teresina", destination="Picos", seats_available=2)
         self.assertEqual(fare.as_tuple().exponent, -2)
+
+    def test_rejects_invalid_seats(self):
+        with self.assertRaises(ValueError):
+            calculate_fare(origin="Teresina", destination="Parnaiba", seats_available=0)
