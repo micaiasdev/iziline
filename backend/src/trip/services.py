@@ -1,6 +1,11 @@
 import unicodedata
 from decimal import Decimal, ROUND_HALF_UP
 
+from django.utils import timezone
+from rest_framework.exceptions import ValidationError
+
+from trip.models import Trip
+
 
 # Tabela mock de distâncias entre cidades conhecidas (km).
 # Substituível por Google Routes API no futuro, sem alterar a assinatura.
@@ -33,12 +38,6 @@ def calculate_fare(*, origin, destination, seats_available):
     total_cost = Decimal(distance_km) * _COST_PER_KM
     fare = total_cost / Decimal(seats_available + 1)
     return fare.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-
-from django.utils import timezone
-from rest_framework.exceptions import ValidationError
-
-from trip.models import Trip
 
 
 def trip_create(*, driver, origin, destination, departure_at, seats_available):
