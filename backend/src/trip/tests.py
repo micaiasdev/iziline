@@ -9,6 +9,7 @@ from rest_framework.test import APITestCase
 
 from trip.models import Trip
 from trip.selectors import trip_get, trip_list
+from trip.serializers import TripCreateSerializer, TripDetailSerializer, TripListSerializer
 from trip.services import calculate_fare, trip_create
 
 User = get_user_model()
@@ -129,3 +130,46 @@ class TripSelectorTests(APITestCase):
     def test_get_raises_404_when_missing(self):
         with self.assertRaises(Http404):
             trip_get(trip_id=999999)
+
+
+class TripSerializerTests(APITestCase):
+    def setUp(self):
+        self.driver = User.objects.create_user(
+            username="motorista", password="x", first_name="Ana", last_name="Silva"
+        )
+        self.trip = Trip.objects.create(
+            driver=self.driver,
+            origin="Teresina",
+            destination="Parnaiba",
+            departure_at=timezone.now() + timedelta(days=1),
+            seats_available=3,
+            price=Decimal("10.00"),
+        )
+
+    def test_create_serializer_rejects_missing_fields(self):
+        serializer = TripCreateSerializer(data={"origin": "Teresina"})
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("destination", serializer.errors)
+
+    def test_create_serializer_excludes_price_and_driver(self):
+        serializer = TripCreateSerializer()
+        self.assertNotIn("price", serializer.fields)
+        self.assertNotIn("driver", serializer.fields)
+
+    def test_detail_serializer_includes_driver_name(self):
+        data = TripDetailSerializer(self.trip).data
+        self.assertEqual(data["driver_name"], "Ana Silva")
+        self.assertEqual(data["seats_available"], 3)
+        self.assertEqual(data["price"], "10.00")
+
+    def test_detail_driver_name_falls_back_to_username(self):
+        self.driver.first_name = ""
+        self.driver.last_name = ""
+        self.driver.save()
+        data = TripDetailSerializer(self.trip).data
+        self.assertEqual(data["driver_name"], "motorista")
+
+    def test_list_serializer_includes_core_fields(self):
+        data = TripListSerializer(self.trip).data
+        for field in ["id", "driver_name", "origin", "destination", "departure_at", "seats_available", "price"]:
+            self.assertIn(field, data)
