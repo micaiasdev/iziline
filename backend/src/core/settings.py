@@ -121,6 +121,10 @@ STATIC_URL = 'static/'
 # Django REST Framework
 # https://www.django-rest-framework.org/api-guide/settings/
 REST_FRAMEWORK = {
+    # BasicAuthentication vem primeiro para que requisições sem credenciais
+    # retornem 401 (e não 403): seu authenticate_header() envia o cabeçalho
+    # WWW-Authenticate. Será substituído por JWT (Simple JWT) no futuro, que
+    # também retorna 401 nativamente.
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.BasicAuthentication',
         'rest_framework.authentication.SessionAuthentication',
