@@ -32,7 +32,7 @@ def calculate_fare(*, origin, destination, seats_available):
     Retorna Decimal arredondado a 2 casas.
     """
     if seats_available < 1:
-        raise ValueError(f"seats_available deve ser >= 1, recebido {seats_available}")
+        raise ValidationError({"seats_available": "Deve haver ao menos 1 vaga."})
     key = frozenset({_normalize_city(origin), _normalize_city(destination)})
     distance_km = _KNOWN_DISTANCES_KM.get(key, _DEFAULT_DISTANCE_KM)
     total_cost = Decimal(distance_km) * _COST_PER_KM

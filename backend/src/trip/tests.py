@@ -3,9 +3,13 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError
 from rest_framework.test import APITestCase
 
-from trip.services import calculate_fare
+from trip.models import Trip
+from trip.services import calculate_fare, trip_create
+
+User = get_user_model()
 
 
 class CalculateFareTests(APITestCase):
@@ -30,16 +34,8 @@ class CalculateFareTests(APITestCase):
         self.assertEqual(fare.as_tuple().exponent, -2)
 
     def test_rejects_invalid_seats(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValidationError):
             calculate_fare(origin="Teresina", destination="Parnaiba", seats_available=0)
-
-
-from rest_framework.exceptions import ValidationError
-
-from trip.models import Trip
-from trip.services import trip_create
-
-User = get_user_model()
 
 
 class TripCreateServiceTests(APITestCase):
