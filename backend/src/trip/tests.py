@@ -173,3 +173,18 @@ class TripSerializerTests(APITestCase):
         data = TripListSerializer(self.trip).data
         for field in ["id", "driver_name", "origin", "destination", "departure_at", "seats_available", "price"]:
             self.assertIn(field, data)
+
+    def test_list_serializer_excludes_detail_only_fields(self):
+        data = TripListSerializer(self.trip).data
+        self.assertNotIn("is_cancelled", data)
+        self.assertNotIn("created_at", data)
+
+    def test_create_serializer_rejects_zero_seats(self):
+        serializer = TripCreateSerializer(data={
+            "origin": "Teresina",
+            "destination": "Parnaiba",
+            "departure_at": timezone.now() + timedelta(days=1),
+            "seats_available": 0,
+        })
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("seats_available", serializer.errors)

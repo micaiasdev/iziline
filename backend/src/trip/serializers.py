@@ -32,6 +32,7 @@ class TripDetailSerializer(_TripOutputBase):
             "is_cancelled",
             "created_at",
         ]
+        read_only_fields = fields  # serializer apenas de saída
 
 
 class TripListSerializer(_TripOutputBase):
@@ -46,3 +47,4 @@ class TripListSerializer(_TripOutputBase):
             "seats_available",
             "price",
         ]
+        read_only_fields = fields  # serializer apenas de saída
