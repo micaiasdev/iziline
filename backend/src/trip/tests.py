@@ -264,6 +264,28 @@ class TripEndpointTests(APITestCase):
         self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(response.data["results"][0]["origin"], "Teresina")
 
+    def test_list_filters_by_date(self):
+        self.client.force_authenticate(self.driver)
+        target = self.future
+        Trip.objects.create(
+            driver=self.driver, origin="Teresina", destination="Parnaiba",
+            departure_at=target, seats_available=3, price=Decimal("10.00"),
+        )
+        Trip.objects.create(
+            driver=self.driver, origin="Teresina", destination="Parnaiba",
+            departure_at=target + timedelta(days=3), seats_available=3, price=Decimal("10.00"),
+        )
+        url = reverse("trip-list-create")
+        response = self.client.get(url, {"date": target.date().isoformat()})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data["results"]), 1)
+
+    def test_list_invalid_date_returns_400(self):
+        self.client.force_authenticate(self.driver)
+        url = reverse("trip-list-create")
+        response = self.client.get(url, {"date": "not-a-date"})
+        self.assertEqual(response.status_code, 400)
+
     # --- GET /api/trips/{id}/ ---
     def test_detail_returns_200(self):
         self.client.force_authenticate(self.driver)

@@ -7,6 +7,7 @@ from trip.selectors import trip_get, trip_list
 from trip.serializers import (
     TripCreateSerializer,
     TripDetailSerializer,
+    TripListFilterSerializer,
     TripListSerializer,
 )
 from trip.services import trip_create
@@ -20,11 +21,9 @@ class TripPagination(PageNumberPagination):
 
 class TripListCreateApi(APIView):
     def get(self, request):
-        trips = trip_list(
-            origin=request.query_params.get("origin"),
-            destination=request.query_params.get("destination"),
-            date=request.query_params.get("date"),
-        )
+        filters = TripListFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        trips = trip_list(**filters.validated_data)
         paginator = TripPagination()
         page = paginator.paginate_queryset(trips, request)
         serializer = TripListSerializer(page, many=True)

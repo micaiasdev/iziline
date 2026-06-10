@@ -10,6 +10,13 @@ class TripCreateSerializer(serializers.Serializer):
     seats_available = serializers.IntegerField(min_value=1)
 
 
+class TripListFilterSerializer(serializers.Serializer):
+    """Valida os query params de busca. `date` inválida vira 400 (não 500)."""
+    origin = serializers.CharField(required=False)
+    destination = serializers.CharField(required=False)
+    date = serializers.DateField(required=False)
+
+
 class _TripOutputBase(serializers.ModelSerializer):
     driver_name = serializers.SerializerMethodField()
 
