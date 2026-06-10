@@ -12,6 +12,12 @@ from trip.models import Trip
 from booking.models import Booking
 from booking.services import booking_create
 from booking.selectors import user_agenda
+from booking.serializers import (
+    AgendaFilterSerializer,
+    AgendaTripSerializer,
+    BookingCreateSerializer,
+    BookingDetailSerializer,
+)
 
 User = get_user_model()
 
@@ -149,3 +155,44 @@ class UserAgendaSelectorTests(APITestCase):
         self.assertNotIn(upcoming.id, past_ids)
         self.assertIn(upcoming.id, upcoming_ids)
         self.assertNotIn(past.id, upcoming_ids)
+
+
+class BookingSerializerTests(APITestCase):
+    def setUp(self):
+        self.driver = User.objects.create_user(username="motorista4", password="x")
+        self.passenger = User.objects.create_user(
+            username="passageiro4", password="x", first_name="Ana", last_name="Silva"
+        )
+        self.trip = Trip.objects.create(
+            driver=self.driver, origin="Teresina", destination="Parnaiba",
+            departure_at=timezone.now() + timedelta(days=1),
+            seats_available=3, price=Decimal("10.00"),
+        )
+
+    def test_create_serializer_requires_trip(self):
+        serializer = BookingCreateSerializer(data={})
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("trip", serializer.errors)
+
+    def test_detail_serializer_shape(self):
+        booking = Booking.objects.create(trip=self.trip, passenger=self.passenger)
+        data = BookingDetailSerializer(booking).data
+        self.assertEqual(data["trip"], self.trip.id)
+        self.assertEqual(data["passenger_name"], "Ana Silva")
+        self.assertFalse(data["is_cancelled"])
+
+    def test_agenda_trip_serializer_includes_role(self):
+        self.trip.role = "driver"
+        data = AgendaTripSerializer(self.trip).data
+        self.assertEqual(data["role"], "driver")
+        self.assertIn("driver_name", data)
+        self.assertNotIn("created_at", data)
+
+    def test_agenda_filter_rejects_invalid_when(self):
+        serializer = AgendaFilterSerializer(data={"when": "nope"})
+        self.assertFalse(serializer.is_valid())
+
+    def test_agenda_filter_defaults_to_upcoming(self):
+        serializer = AgendaFilterSerializer(data={})
+        self.assertTrue(serializer.is_valid())
+        self.assertEqual(serializer.validated_data["when"], "upcoming")
