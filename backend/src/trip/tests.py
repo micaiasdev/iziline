@@ -232,6 +232,11 @@ class TripEndpointTests(APITestCase):
         self.assertEqual(response.status_code, 400)
 
     # --- GET /api/trips/ ---
+    def test_list_requires_authentication(self):
+        url = reverse("trip-list-create")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 401)
+
     def test_list_returns_paginated_bookable_trips(self):
         self.client.force_authenticate(self.driver)
         Trip.objects.create(
