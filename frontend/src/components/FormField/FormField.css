@@ -1,0 +1,38 @@
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-field label {
+  color: #263647;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.form-field input {
+  min-height: 48px;
+  width: 100%;
+  border: 1px solid #d7e1e0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #263647;
+  font-size: 1rem;
+  padding: 10px 12px;
+}
+
+.form-field input:focus {
+  border-color: #4f8f8c;
+  box-shadow: 0 0 0 3px rgba(79, 143, 140, 0.18);
+  outline: none;
+}
+
+.form-field input[aria-invalid="true"] {
+  border-color: #b42318;
+}
+
+.form-field__error {
+  color: #b42318;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}

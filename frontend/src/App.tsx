@@ -1,8 +1,8 @@
-import TravelFormPage from './travel/pages/form'
 import './App.css'
+import { NewTripPage } from './travel/pages/NewTripPage/NewTripPage'
 
 function App() {
-  return <TravelFormPage />
+  return <NewTripPage />
 }
 
 export default App
