@@ -6,7 +6,10 @@ from trip.models import Trip
 
 def trip_list(*, origin=None, destination=None, date=None):
     """Retorna viagens reserváveis (futuras, com vaga, não canceladas),
-    aplicando filtros opcionais de origem, destino e data."""
+    aplicando filtros opcionais de origem, destino e data.
+
+    date: str em formato YYYY-MM-DD ou datetime.date, ou None.
+    """
     qs = (
         Trip.objects.select_related("driver")
         .filter(
@@ -25,5 +28,9 @@ def trip_list(*, origin=None, destination=None, date=None):
 
 
 def trip_get(*, trip_id):
-    """Retorna a viagem pelo id ou levanta Http404."""
+    """Retorna a viagem pelo id ou levanta Http404.
+
+    Nota: retorna qualquer viagem (incluindo canceladas e passadas) — o
+    endpoint de detalhe não filtra por status, apenas verifica existência.
+    """
     return get_object_or_404(Trip.objects.select_related("driver"), id=trip_id)
