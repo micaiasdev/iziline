@@ -2,11 +2,13 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.http import Http404
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APITestCase
 
 from trip.models import Trip
+from trip.selectors import trip_get, trip_list
 from trip.services import calculate_fare, trip_create
 
 User = get_user_model()
@@ -79,3 +81,51 @@ class TripCreateServiceTests(APITestCase):
                 seats_available=0,
             )
         self.assertEqual(Trip.objects.count(), 0)
+
+
+class TripSelectorTests(APITestCase):
+    def setUp(self):
+        self.driver = User.objects.create_user(username="motorista", password="x")
+        self.future = timezone.now() + timedelta(days=2)
+
+    def _make_trip(self, **overrides):
+        defaults = dict(
+            driver=self.driver,
+            origin="Teresina",
+            destination="Parnaiba",
+            departure_at=self.future,
+            seats_available=3,
+            price=Decimal("10.00"),
+            is_cancelled=False,
+        )
+        defaults.update(overrides)
+        return Trip.objects.create(**defaults)
+
+    def test_list_returns_only_bookable_trips(self):
+        valid = self._make_trip()
+        self._make_trip(seats_available=0)  # lotada
+        self._make_trip(is_cancelled=True)  # cancelada
+        self._make_trip(departure_at=timezone.now() - timedelta(days=1))  # passada
+        results = list(trip_list())
+        self.assertEqual(results, [valid])
+
+    def test_list_filters_by_origin_destination_case_insensitive(self):
+        match = self._make_trip(origin="Teresina", destination="Picos")
+        self._make_trip(origin="Floriano", destination="Picos")
+        results = list(trip_list(origin="teres", destination="pic"))
+        self.assertEqual(results, [match])
+
+    def test_list_filters_by_date(self):
+        target_day = (timezone.now() + timedelta(days=5)).date()
+        match = self._make_trip(departure_at=timezone.now() + timedelta(days=5))
+        self._make_trip(departure_at=timezone.now() + timedelta(days=6))
+        results = list(trip_list(date=target_day.isoformat()))
+        self.assertEqual(results, [match])
+
+    def test_get_returns_trip_by_id(self):
+        trip = self._make_trip()
+        self.assertEqual(trip_get(trip_id=trip.id), trip)
+
+    def test_get_raises_404_when_missing(self):
+        with self.assertRaises(Http404):
+            trip_get(trip_id=999999)
