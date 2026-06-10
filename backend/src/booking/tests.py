@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.http import Http404
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APITestCase
@@ -196,3 +197,68 @@ class BookingSerializerTests(APITestCase):
         serializer = AgendaFilterSerializer(data={})
         self.assertTrue(serializer.is_valid())
         self.assertEqual(serializer.validated_data["when"], "upcoming")
+
+
+class BookingEndpointTests(APITestCase):
+    def setUp(self):
+        self.driver = User.objects.create_user(username="motorista5", password="x")
+        self.passenger = User.objects.create_user(username="passageiro5", password="x")
+        self.trip = Trip.objects.create(
+            driver=self.driver, origin="Teresina", destination="Parnaiba",
+            departure_at=timezone.now() + timedelta(days=1),
+            seats_available=3, price=Decimal("10.00"),
+        )
+
+    # --- POST /api/bookings/ ---
+    def test_create_requires_authentication(self):
+        response = self.client.post(
+            reverse("booking-create"), {"trip": self.trip.id}, format="json"
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_create_returns_201_and_decrements_seats(self):
+        self.client.force_authenticate(self.passenger)
+        response = self.client.post(
+            reverse("booking-create"), {"trip": self.trip.id}, format="json"
+        )
+        self.assertEqual(response.status_code, 201)
+        self.trip.refresh_from_db()
+        self.assertEqual(self.trip.seats_available, 2)
+        self.assertFalse(response.data["is_cancelled"])
+
+    def test_create_own_trip_returns_400(self):
+        self.client.force_authenticate(self.driver)
+        response = self.client.post(
+            reverse("booking-create"), {"trip": self.trip.id}, format="json"
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_create_nonexistent_trip_returns_404(self):
+        self.client.force_authenticate(self.passenger)
+        response = self.client.post(
+            reverse("booking-create"), {"trip": 999999}, format="json"
+        )
+        self.assertEqual(response.status_code, 404)
+
+    # --- GET /api/bookings/my-trips/ ---
+    def test_agenda_requires_authentication(self):
+        response = self.client.get(reverse("user-agenda"))
+        self.assertEqual(response.status_code, 401)
+
+    def test_agenda_returns_paginated(self):
+        self.client.force_authenticate(self.passenger)
+        Trip.objects.create(
+            driver=self.passenger, origin="A", destination="B",
+            departure_at=timezone.now() + timedelta(days=1),
+            seats_available=3, price=Decimal("10.00"),
+        )
+        response = self.client.get(reverse("user-agenda"))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("results", response.data)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["role"], "driver")
+
+    def test_agenda_invalid_when_returns_400(self):
+        self.client.force_authenticate(self.passenger)
+        response = self.client.get(reverse("user-agenda"), {"when": "garbage"})
+        self.assertEqual(response.status_code, 400)
