@@ -1,6 +1,6 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { FormField } from "../../../components/FormField/FormField";
-import type { NewTripFormData } from "../../../types/trip"
+import type { NewTripFormData } from "../../../types/trip";
 import izilineLogo from "../../../assets/iziline.png";
 import "./NewTripPage.css";
 
@@ -53,15 +53,13 @@ export function NewTripPage() {
             src={izilineLogo}
             alt="Iziline"
           />
-          <p className="new-trip-copy__eyebrow">Motorista Iziline</p>
-          <h1 id="new-trip-title">Cadastrar nova viagem</h1>
-          <p>
-            Informe o trajeto, a saída e a quantidade de lugares disponíveis
-            para que outros usuários encontrem sua carona.
-          </p>
         </div>
 
         <form className="new-trip-form" onSubmit={handleSubmit}>
+          <header className="new-trip-form__header">
+            <h1 id="new-trip-title">Cadastrar nova viagem</h1>
+          </header>
+
           <div className="new-trip-form__group">
             <FormField
               id="origin"
