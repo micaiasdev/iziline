@@ -6,12 +6,12 @@ from django.db import IntegrityError, transaction
 from django.http import Http404
 from django.urls import reverse
 from django.utils import timezone
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.test import APITestCase
 
 from trip.models import Trip
 from booking.models import Booking
-from booking.services import booking_create
+from booking.services import booking_cancel, booking_create
 from booking.selectors import user_agenda
 from booking.serializers import (
     AgendaFilterSerializer,
@@ -23,15 +23,31 @@ from booking.serializers import (
 User = get_user_model()
 
 
+# ──────────────────────────────────────────────
+# Helpers
+# ──────────────────────────────────────────────
+
+def make_trip(driver, departure_at=None, **overrides):
+    defaults = dict(
+        origin="Teresina",
+        destination="Parnaiba",
+        departure_at=departure_at or timezone.now() + timedelta(days=1),
+        seats_available=3,
+        price=Decimal("10.00"),
+    )
+    defaults.update(overrides)
+    return Trip.objects.create(driver=driver, **defaults)
+
+
+# ──────────────────────────────────────────────
+# Testes existentes (inalterados)
+# ──────────────────────────────────────────────
+
 class BookingModelTests(APITestCase):
     def setUp(self):
         self.driver = User.objects.create_user(username="motorista", password="x")
         self.passenger = User.objects.create_user(username="passageiro", password="x")
-        self.trip = Trip.objects.create(
-            driver=self.driver, origin="Teresina", destination="Parnaiba",
-            departure_at=timezone.now() + timedelta(days=1),
-            seats_available=3, price=Decimal("10.00"),
-        )
+        self.trip = make_trip(self.driver)
 
     def test_creates_booking(self):
         booking = Booking.objects.create(trip=self.trip, passenger=self.passenger)
@@ -60,11 +76,7 @@ class BookingCreateServiceTests(APITestCase):
     def setUp(self):
         self.driver = User.objects.create_user(username="motorista2", password="x")
         self.passenger = User.objects.create_user(username="passageiro2", password="x")
-        self.trip = Trip.objects.create(
-            driver=self.driver, origin="Teresina", destination="Parnaiba",
-            departure_at=timezone.now() + timedelta(days=1),
-            seats_available=3, price=Decimal("10.00"),
-        )
+        self.trip = make_trip(self.driver)
 
     def test_creates_booking_and_decrements_seats(self):
         booking = booking_create(trip_id=self.trip.id, passenger=self.passenger)
@@ -84,11 +96,7 @@ class BookingCreateServiceTests(APITestCase):
             booking_create(trip_id=self.trip.id, passenger=self.passenger)
 
     def test_cannot_book_past_trip(self):
-        past = Trip.objects.create(
-            driver=self.driver, origin="A", destination="B",
-            departure_at=timezone.now() - timedelta(days=1),
-            seats_available=3, price=Decimal("10.00"),
-        )
+        past = make_trip(self.driver, departure_at=timezone.now() - timedelta(days=1))
         with self.assertRaises(ValidationError):
             booking_create(trip_id=past.id, passenger=self.passenger)
 
@@ -108,6 +116,120 @@ class BookingCreateServiceTests(APITestCase):
             booking_create(trip_id=self.trip.id, passenger=self.passenger)
 
 
+# ──────────────────────────────────────────────
+# Novos testes — booking_cancel (Issue #30)
+# ──────────────────────────────────────────────
+
+class BookingCancelServiceTests(APITestCase):
+    def setUp(self):
+        self.driver = User.objects.create_user(username="motorista_bc", password="x")
+        self.passenger = User.objects.create_user(username="passageiro_bc", password="x")
+        self.other = User.objects.create_user(username="outro_bc", password="x")
+        self.trip = make_trip(self.driver, seats_available=3)
+        self.booking = Booking.objects.create(trip=self.trip, passenger=self.passenger)
+
+    def test_passenger_can_cancel_booking(self):
+        booking = booking_cancel(booking_id=self.booking.id, user=self.passenger)
+        self.assertTrue(booking.is_cancelled)
+        self.booking.refresh_from_db()
+        self.assertTrue(self.booking.is_cancelled)
+
+    def test_cancel_restores_seat_to_trip(self):
+        self.trip.seats_available = 2
+        self.trip.save()
+
+        booking_cancel(booking_id=self.booking.id, user=self.passenger)
+
+        self.trip.refresh_from_db()
+        self.assertEqual(self.trip.seats_available, 3)
+
+    def test_non_passenger_cannot_cancel(self):
+        with self.assertRaises(PermissionDenied):
+            booking_cancel(booking_id=self.booking.id, user=self.other)
+        self.booking.refresh_from_db()
+        self.assertFalse(self.booking.is_cancelled)
+
+    def test_driver_cannot_cancel_passenger_booking(self):
+        with self.assertRaises(PermissionDenied):
+            booking_cancel(booking_id=self.booking.id, user=self.driver)
+
+    def test_cannot_cancel_already_cancelled_booking(self):
+        self.booking.is_cancelled = True
+        self.booking.save()
+        with self.assertRaises(ValidationError):
+            booking_cancel(booking_id=self.booking.id, user=self.passenger)
+
+    def test_cannot_cancel_booking_of_departed_trip(self):
+        past_trip = make_trip(self.driver, departure_at=timezone.now() - timedelta(hours=1))
+        past_booking = Booking.objects.create(trip=past_trip, passenger=self.passenger)
+        with self.assertRaises(ValidationError):
+            booking_cancel(booking_id=past_booking.id, user=self.passenger)
+
+    def test_nonexistent_booking_raises_404(self):
+        with self.assertRaises(Http404):
+            booking_cancel(booking_id=999999, user=self.passenger)
+
+
+class BookingCancelEndpointTests(APITestCase):
+    def setUp(self):
+        self.driver = User.objects.create_user(username="motorista_bce", password="x")
+        self.passenger = User.objects.create_user(username="passageiro_bce", password="x")
+        self.other = User.objects.create_user(username="outro_bce", password="x")
+        self.trip = make_trip(self.driver, seats_available=3)
+        self.booking = Booking.objects.create(trip=self.trip, passenger=self.passenger)
+
+    def _url(self, booking_id=None):
+        return reverse("booking-cancel", args=[booking_id or self.booking.id])
+
+    def test_cancel_requires_authentication(self):
+        response = self.client.patch(self._url())
+        self.assertEqual(response.status_code, 401)
+
+    def test_passenger_cancel_returns_200(self):
+        self.client.force_authenticate(self.passenger)
+        response = self.client.patch(self._url())
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["is_cancelled"])
+
+    def test_cancel_restores_seat(self):
+        self.trip.seats_available = 2
+        self.trip.save()
+
+        self.client.force_authenticate(self.passenger)
+        self.client.patch(self._url())
+
+        self.trip.refresh_from_db()
+        self.assertEqual(self.trip.seats_available, 3)
+
+    def test_other_user_returns_403(self):
+        self.client.force_authenticate(self.other)
+        response = self.client.patch(self._url())
+        self.assertEqual(response.status_code, 403)
+
+    def test_already_cancelled_returns_400(self):
+        self.booking.is_cancelled = True
+        self.booking.save()
+        self.client.force_authenticate(self.passenger)
+        response = self.client.patch(self._url())
+        self.assertEqual(response.status_code, 400)
+
+    def test_nonexistent_booking_returns_404(self):
+        self.client.force_authenticate(self.passenger)
+        response = self.client.patch(self._url(booking_id=999999))
+        self.assertEqual(response.status_code, 404)
+
+    def test_departed_trip_returns_400(self):
+        past_trip = make_trip(self.driver, departure_at=timezone.now() - timedelta(hours=1))
+        past_booking = Booking.objects.create(trip=past_trip, passenger=self.passenger)
+        self.client.force_authenticate(self.passenger)
+        response = self.client.patch(self._url(booking_id=past_booking.id))
+        self.assertEqual(response.status_code, 400)
+
+
+# ──────────────────────────────────────────────
+# Testes existentes (inalterados)
+# ──────────────────────────────────────────────
+
 class UserAgendaSelectorTests(APITestCase):
     def setUp(self):
         self.driver = User.objects.create_user(username="motorista3", password="x")
@@ -115,12 +237,7 @@ class UserAgendaSelectorTests(APITestCase):
         self.future = timezone.now() + timedelta(days=2)
 
     def _trip(self, driver, **overrides):
-        defaults = dict(
-            origin="Teresina", destination="Parnaiba", departure_at=self.future,
-            seats_available=3, price=Decimal("10.00"),
-        )
-        defaults.update(overrides)
-        return Trip.objects.create(driver=driver, **defaults)
+        return make_trip(driver, departure_at=self.future, **overrides)
 
     def test_includes_driver_and_passenger_roles(self):
         mine_as_driver = self._trip(self.me)
@@ -164,11 +281,7 @@ class BookingSerializerTests(APITestCase):
         self.passenger = User.objects.create_user(
             username="passageiro4", password="x", first_name="Ana", last_name="Silva"
         )
-        self.trip = Trip.objects.create(
-            driver=self.driver, origin="Teresina", destination="Parnaiba",
-            departure_at=timezone.now() + timedelta(days=1),
-            seats_available=3, price=Decimal("10.00"),
-        )
+        self.trip = make_trip(self.driver)
 
     def test_create_serializer_requires_trip(self):
         serializer = BookingCreateSerializer(data={})
@@ -203,13 +316,8 @@ class BookingEndpointTests(APITestCase):
     def setUp(self):
         self.driver = User.objects.create_user(username="motorista5", password="x")
         self.passenger = User.objects.create_user(username="passageiro5", password="x")
-        self.trip = Trip.objects.create(
-            driver=self.driver, origin="Teresina", destination="Parnaiba",
-            departure_at=timezone.now() + timedelta(days=1),
-            seats_available=3, price=Decimal("10.00"),
-        )
+        self.trip = make_trip(self.driver)
 
-    # --- POST /api/bookings/ ---
     def test_create_requires_authentication(self):
         response = self.client.post(
             reverse("booking-create"), {"trip": self.trip.id}, format="json"
@@ -240,7 +348,6 @@ class BookingEndpointTests(APITestCase):
         )
         self.assertEqual(response.status_code, 404)
 
-    # --- GET /api/bookings/my-trips/ ---
     def test_agenda_requires_authentication(self):
         response = self.client.get(reverse("user-agenda"))
         self.assertEqual(response.status_code, 401)

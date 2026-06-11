@@ -12,7 +12,7 @@ from booking.serializers import (
     BookingCreateSerializer,
     BookingDetailSerializer,
 )
-from booking.services import booking_create
+from booking.services import booking_cancel, booking_create
 
 
 class BookingCreateApi(APIView):
@@ -27,6 +27,14 @@ class BookingCreateApi(APIView):
         return Response(
             BookingDetailSerializer(booking).data, status=status.HTTP_201_CREATED
         )
+
+
+class BookingCancelApi(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, booking_id):
+        booking = booking_cancel(booking_id=booking_id, user=request.user)
+        return Response(BookingDetailSerializer(booking).data)
 
 
 class UserAgendaApi(APIView):
