@@ -1,0 +1,125 @@
+.travel-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100svh;
+  padding: 32px 20px;
+  box-sizing: border-box;
+  background:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.08), transparent 36%),
+    linear-gradient(315deg, rgba(20, 184, 166, 0.12), transparent 34%),
+    var(--bg);
+}
+
+.travel-form {
+  display: grid;
+  width: min(100%, 460px);
+  gap: 18px;
+  padding: 32px;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  box-sizing: border-box;
+}
+
+.form-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.form-kicker {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.travel-form h1 {
+  margin: 0;
+}
+
+.travel-form label {
+  display: grid;
+  gap: 8px;
+  color: var(--text-h);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.travel-form input {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  color: var(--text-h);
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  box-sizing: border-box;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.travel-form input::placeholder {
+  color: var(--muted);
+}
+
+.travel-form input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+  outline: none;
+}
+
+.travel-form button {
+  min-height: 48px;
+  margin-top: 4px;
+  color: #ffffff;
+  background: var(--accent);
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  transition:
+    background-color 0.2s,
+    transform 0.2s;
+}
+
+.travel-form button:hover {
+  background: var(--accent-hover);
+}
+
+.travel-form button:active {
+  transform: translateY(1px);
+}
+
+.travel-form button:focus-visible {
+  outline: 3px solid var(--accent-ring);
+  outline-offset: 3px;
+}
+
+.success-message {
+  padding: 12px 14px;
+  color: var(--success);
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+@media (max-width: 520px) {
+  .travel-page {
+    padding: 20px 14px;
+  }
+
+  .travel-form {
+    padding: 24px;
+  }
+}
