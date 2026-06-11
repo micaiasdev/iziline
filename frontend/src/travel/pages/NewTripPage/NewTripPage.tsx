@@ -1,8 +1,13 @@
 ﻿import { useEffect, useState } from "react";
 import { FormField } from "../../../components/FormField/FormField";
+import { calculateTripCosts } from "../../service/costService";
 import { getPossibleAddresses } from "../../service/locationService";
 import { createTrip } from "../../service/serviceApi";
-import type { NewTripFormData } from "../../../types/trip";
+import type {
+  NewTripFormData,
+  TripCostEstimate,
+  TripResponse,
+} from "../../../types/trip";
 import izilineLogo from "../../../assets/iziline.png";
 import "./NewTripPage.css";
 
@@ -16,10 +21,27 @@ const initialFormData: NewTripFormData = {
 
 const currentLocationLabel = "Minha localização atual";
 const lastCreatedTripStorageKey = "iziline:lastCreatedTrip";
+const minAvailableSeats = 1;
+const maxAvailableSeats = 8;
+
+const currencyFormatter = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+
+const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
+  dateStyle: "long",
+  timeStyle: "short",
+});
+
+const percentFormatter = new Intl.NumberFormat("pt-BR", {
+  style: "percent",
+  maximumFractionDigits: 0,
+});
 
 type AddressFieldName = "origin" | "destination";
 type NewTripFormErrors = Partial<Record<keyof NewTripFormData | "departure", string>>;
-type NewTripStage = "form" | "costDetails";
+type NewTripStage = "form" | "costDetails" | "completed";
 
 type AddressSearchProps = {
   id: AddressFieldName;
@@ -29,6 +51,19 @@ type AddressSearchProps = {
   error?: string;
   allowCurrentLocation?: boolean;
   onChange: (field: AddressFieldName, value: string) => void;
+};
+
+type TripCostCardProps = {
+  tripData: NewTripFormData;
+  costEstimate: TripCostEstimate;
+  isSubmitting: boolean;
+  onBack: () => void;
+  onConfirm: () => void;
+};
+
+type CompletedTripCardProps = {
+  createdTrip: TripResponse | null;
+  onCreateAnother: () => void;
 };
 
 function AddressSearch({
@@ -172,11 +207,202 @@ function AddressSearch({
   );
 }
 
+function TripCostCard({
+  tripData,
+  costEstimate,
+  isSubmitting,
+  onBack,
+  onConfirm,
+}: TripCostCardProps) {
+  return (
+    <article className="trip-review-card" aria-labelledby="trip-cost-title">
+      <header className="trip-review-card__header">
+        <p className="trip-review-card__eyebrow">Resumo da viagem</p>
+        <h1 id="trip-cost-title">Confira os custos</h1>
+        <p>Revise os dados antes de confirmar o cadastro.</p>
+      </header>
+
+      <div className="trip-route" aria-label="Trajeto da viagem">
+        <div className="trip-route__point">
+          <span>Origem</span>
+          <strong>{tripData.origin}</strong>
+        </div>
+        <div className="trip-route__separator" aria-hidden="true" />
+        <div className="trip-route__point">
+          <span>Destino</span>
+          <strong>{tripData.destination}</strong>
+        </div>
+      </div>
+
+      <div className="trip-details-grid">
+        <div className="trip-detail">
+          <span>Saída</span>
+          <strong>{formatDeparture(tripData.date, tripData.time)}</strong>
+        </div>
+        <div className="trip-detail">
+          <span>Vagas</span>
+          <strong>{formatPassengers(tripData.availableSeats)}</strong>
+        </div>
+        <div className="trip-detail">
+          <span>Rateio</span>
+          <strong>{formatOccupants(costEstimate.occupantsCount)}</strong>
+        </div>
+      </div>
+
+      <section className="trip-costs" aria-label="Cálculo de custos">
+        <div className="trip-costs__meta">
+          <span>
+            <small>Distância</small>
+            {formatDistance(costEstimate.distanceInKm)}
+          </span>
+          <span>
+            <small>Consumo</small>
+            {formatFuelEfficiency(costEstimate.fuelEfficiencyKmPerLiter)}
+          </span>
+          <span>
+            <small>Combustível</small>
+            {formatFuelPrice(costEstimate.fuelPricePerLiter)}
+          </span>
+        </div>
+
+        {costEstimate.breakdown.map((item) => (
+          <div className="trip-costs__row" key={item.label}>
+            <span>{item.label}</span>
+            <strong>{formatCurrency(item.amount)}</strong>
+          </div>
+        ))}
+
+        <div className="trip-costs__row">
+          <span>Taxa aplicada</span>
+          <strong>{percentFormatter.format(costEstimate.serviceFeeRate)}</strong>
+        </div>
+
+        <div className="trip-costs__total">
+          <div>
+            <span>Total estimado</span>
+            <small>Dividido entre {formatOccupants(costEstimate.occupantsCount)}</small>
+          </div>
+          <strong>{formatCurrency(costEstimate.totalCost)}</strong>
+        </div>
+
+        <div className="trip-costs__per-person">
+          <span>Valor por pessoa</span>
+          <strong>{formatCurrency(costEstimate.perPersonCost)}</strong>
+        </div>
+      </section>
+
+      <div className="trip-review-card__actions">
+        <button
+          className="button button--secondary"
+          type="button"
+          onClick={onBack}
+          disabled={isSubmitting}
+        >
+          Voltar
+        </button>
+        <button
+          className="button button--primary"
+          type="button"
+          onClick={onConfirm}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "Confirmando..." : "Confirmar cadastro"}
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function CompletedTripCard({
+  createdTrip,
+  onCreateAnother,
+}: CompletedTripCardProps) {
+  return (
+    <article className="trip-completed-card" aria-labelledby="trip-completed-title">
+      <div className="trip-completed-card__badge">OK</div>
+
+      <header className="trip-completed-card__header">
+        <p className="trip-review-card__eyebrow">Cadastro concluído</p>
+        <h1 id="trip-completed-title">Viagem cadastrada</h1>
+        <p>
+          {createdTrip
+            ? `A viagem de ${createdTrip.origin} para ${createdTrip.destination} foi salva.`
+            : "A viagem foi salva."}
+        </p>
+      </header>
+
+      {createdTrip && (
+        <div className="trip-completed-card__summary">
+          <span>Saída</span>
+          <strong>{formatDateTime(createdTrip.departure_at)}</strong>
+          <span>Vagas disponíveis</span>
+          <strong>{formatPassengers(createdTrip.seats_available)}</strong>
+        </div>
+      )}
+
+      <div className="trip-completed-card__actions">
+        <button
+          className="button button--primary"
+          type="button"
+          onClick={onCreateAnother}
+        >
+          Cadastrar outra viagem
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function formatCurrency(value: number) {
+  return currencyFormatter.format(value);
+}
+
+function formatDeparture(date: string, time: string) {
+  return formatDateTime(`${date}T${time}`);
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return dateTimeFormatter.format(date);
+}
+
+function formatDistance(value: number) {
+  return `${value.toLocaleString("pt-BR")} km`;
+}
+
+function formatFuelEfficiency(value: number) {
+  return `${value.toLocaleString("pt-BR")} km/L`;
+}
+
+function formatFuelPrice(value: number) {
+  return `${formatCurrency(value)}/L`;
+}
+
+function formatPassengers(value: number) {
+  return value === 1 ? "1 passageiro" : `${value} passageiros`;
+}
+
+function formatOccupants(value: number) {
+  return value === 1 ? "1 ocupante" : `${value} ocupantes`;
+}
+
 export function NewTripPage() {
   const [formData, setFormData] = useState<NewTripFormData>(initialFormData);
   const [errors, setErrors] = useState<NewTripFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [stage, setStage] = useState<NewTripStage>("form");
+  const [pendingTripData, setPendingTripData] = useState<NewTripFormData | null>(
+    null
+  );
+  const [costEstimate, setCostEstimate] = useState<TripCostEstimate | null>(
+    null
+  );
+  const [createdTrip, setCreatedTrip] = useState<TripResponse | null>(null);
 
   function updateField<Field extends keyof NewTripFormData>(
     field: Field,
@@ -201,7 +427,7 @@ export function NewTripPage() {
   function decreaseSeats() {
     setFormData((currentData) => ({
       ...currentData,
-      availableSeats: Math.max(1, currentData.availableSeats - 1),
+      availableSeats: Math.max(minAvailableSeats, currentData.availableSeats - 1),
     }));
 
     setErrors((currentErrors) => ({
@@ -213,7 +439,7 @@ export function NewTripPage() {
   function increaseSeats() {
     setFormData((currentData) => ({
       ...currentData,
-      availableSeats: Math.min(8, currentData.availableSeats + 1),
+      availableSeats: Math.min(maxAvailableSeats, currentData.availableSeats + 1),
     }));
 
     setErrors((currentErrors) => ({
@@ -241,8 +467,10 @@ export function NewTripPage() {
       nextErrors.time = "Preencha o horário de saída.";
     }
 
-    if (!formData.availableSeats || formData.availableSeats < 1) {
+    if (!formData.availableSeats || formData.availableSeats < minAvailableSeats) {
       nextErrors.availableSeats = "Informe pelo menos 1 vaga disponível.";
+    } else if (formData.availableSeats > maxAvailableSeats) {
+      nextErrors.availableSeats = "Informe no máximo 8 vagas disponíveis.";
     }
 
     if (formData.date && formData.time) {
@@ -273,20 +501,93 @@ export function NewTripPage() {
     setIsSubmitting(true);
 
     try {
-      const createdTrip = await createTrip(normalizedTripData);
+      const nextCostEstimate = await calculateTripCosts(normalizedTripData);
 
-      window.sessionStorage.setItem(
-        lastCreatedTripStorageKey,
-        JSON.stringify(createdTrip)
-      );
+      setPendingTripData(normalizedTripData);
+      setCostEstimate(nextCostEstimate);
       setStage("costDetails");
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  if (stage === "costDetails") {
-    return null;
+  function handleBackToForm() {
+    setStage("form");
+  }
+
+  async function handleConfirmTrip() {
+    if (!pendingTripData) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const nextCreatedTrip = await createTrip(pendingTripData);
+
+      window.sessionStorage.setItem(
+        lastCreatedTripStorageKey,
+        JSON.stringify(nextCreatedTrip)
+      );
+      setCreatedTrip(nextCreatedTrip);
+      setStage("completed");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  function handleCreateAnotherTrip() {
+    setFormData(initialFormData);
+    setErrors({});
+    setPendingTripData(null);
+    setCostEstimate(null);
+    setCreatedTrip(null);
+    setStage("form");
+  }
+
+  if (stage === "costDetails" && pendingTripData && costEstimate) {
+    return (
+      <main className="new-trip-page">
+        <section className="new-trip-shell" aria-labelledby="trip-cost-title">
+          <div className="new-trip-copy">
+            <img
+              className="new-trip-copy__logo"
+              src={izilineLogo}
+              alt="Iziline"
+            />
+          </div>
+
+          <TripCostCard
+            tripData={pendingTripData}
+            costEstimate={costEstimate}
+            isSubmitting={isSubmitting}
+            onBack={handleBackToForm}
+            onConfirm={handleConfirmTrip}
+          />
+        </section>
+      </main>
+    );
+  }
+
+  if (stage === "completed") {
+    return (
+      <main className="new-trip-page">
+        <section className="new-trip-shell" aria-labelledby="trip-completed-title">
+          <div className="new-trip-copy">
+            <img
+              className="new-trip-copy__logo"
+              src={izilineLogo}
+              alt="Iziline"
+            />
+          </div>
+
+          <CompletedTripCard
+            createdTrip={createdTrip}
+            onCreateAnother={handleCreateAnotherTrip}
+          />
+        </section>
+      </main>
+    );
   }
 
   return (
@@ -370,8 +671,8 @@ export function NewTripPage() {
               <input
                 id="availableSeats"
                 type="number"
-                min="1"
-                max="8"
+                min={minAvailableSeats}
+                max={maxAvailableSeats}
                 value={formData.availableSeats}
                 aria-invalid={Boolean(errors.availableSeats)}
                 onChange={(event) =>

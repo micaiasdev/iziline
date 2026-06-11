@@ -37,3 +37,23 @@ export type TripResponse = {
   is_cancelled: boolean;
   created_at?: string;
 };
+
+export type TripCostBreakdownItem = {
+  label: string;
+  amount: number;
+};
+
+export type TripCostEstimate = {
+  distanceInKm: number;
+  fuelPricePerLiter: number;
+  fuelEfficiencyKmPerLiter: number;
+  fuelCost: number;
+  tollCost: number;
+  serviceFeeRate: number;
+  serviceFee: number;
+  totalCost: number;
+  occupantsCount: number;
+  passengersCount: number;
+  perPersonCost: number;
+  breakdown: TripCostBreakdownItem[];
+};
