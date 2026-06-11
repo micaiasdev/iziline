@@ -1,8 +1,9 @@
 import unicodedata
 from decimal import Decimal, ROUND_HALF_UP
 
+from django.db import transaction
 from django.utils import timezone
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError, PermissionDenied
 
 from trip.models import Trip
 
@@ -60,3 +61,32 @@ def trip_create(*, driver, origin, destination, departure_at, seats_available):
         seats_available=seats_available,
         price=price,
     )
+
+
+def trip_cancel(*, trip_id, user):
+    """Cancela uma viagem e todas as reservas ativas associadas.
+ 
+    Apenas o motorista da viagem pode cancelar.
+    Viagens já canceladas não podem ser canceladas novamente.
+    """
+    with transaction.atomic():
+        try:
+            trip = Trip.objects.select_for_update().get(id=trip_id)
+        except Trip.DoesNotExist:
+            from django.http import Http404
+            raise Http404
+ 
+        if trip.driver_id != user.id:
+            raise PermissionDenied("Apenas o motorista pode cancelar esta viagem.")
+ 
+        if trip.is_cancelled:
+            raise ValidationError({"trip": "Esta viagem já está cancelada."})
+ 
+        trip.is_cancelled = True
+        trip.save(update_fields=["is_cancelled", "updated_at"])
+ 
+        # Cancela em cascata todas as reservas ativas desta viagem
+        trip.bookings.filter(is_cancelled=False).update(is_cancelled=True)
+ 
+        return trip
+ 

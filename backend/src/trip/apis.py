@@ -1,5 +1,6 @@
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -10,7 +11,7 @@ from trip.serializers import (
     TripListFilterSerializer,
     TripListSerializer,
 )
-from trip.services import trip_create
+from trip.services import trip_cancel, trip_create
 
 
 class TripPagination(PageNumberPagination):
@@ -39,4 +40,12 @@ class TripListCreateApi(APIView):
 class TripDetailApi(APIView):
     def get(self, request, trip_id):
         trip = trip_get(trip_id=trip_id)
+        return Response(TripDetailSerializer(trip).data)
+
+
+class TripCancelApi(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, trip_id):
+        trip = trip_cancel(trip_id=trip_id, user=request.user)
         return Response(TripDetailSerializer(trip).data)
