@@ -94,6 +94,78 @@
   min-width: 0;
 }
 
+
+.address-search {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.address-search label {
+  color: var(--iziline-navy);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.address-search__input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  min-width: 0;
+}
+
+.address-search__input-row--single {
+  grid-template-columns: 1fr;
+}
+
+.address-search input {
+  min-height: 48px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid var(--iziline-border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--iziline-navy);
+  font-size: 1rem;
+  padding: 10px 12px;
+}
+
+.address-search input:focus {
+  border-color: var(--iziline-teal);
+  box-shadow: 0 0 0 3px rgba(79, 143, 140, 0.18);
+  outline: none;
+}
+
+.address-search__input-row button,
+.address-search__suggestions button {
+  min-height: 48px;
+  border: 1px solid var(--iziline-border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--iziline-navy);
+  cursor: pointer;
+  font-weight: 800;
+  padding: 0 14px;
+}
+
+.address-search__input-row button:hover,
+.address-search__suggestions button:hover {
+  background: var(--iziline-teal-light);
+}
+
+.address-search__suggestions {
+  display: grid;
+  gap: 8px;
+}
+
+.address-search__suggestions button {
+  min-height: 42px;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .seats-field {
   display: flex;
   align-items: center;
@@ -256,7 +328,83 @@
     gap: 20px;
   }
 
-  .seats-field {
+  .address-search__input-row {
+    grid-template-columns: 1fr;
+  }
+
+  
+.address-search {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.address-search label {
+  color: var(--iziline-navy);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.address-search__input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  min-width: 0;
+}
+
+.address-search__input-row--single {
+  grid-template-columns: 1fr;
+}
+
+.address-search input {
+  min-height: 48px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid var(--iziline-border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--iziline-navy);
+  font-size: 1rem;
+  padding: 10px 12px;
+}
+
+.address-search input:focus {
+  border-color: var(--iziline-teal);
+  box-shadow: 0 0 0 3px rgba(79, 143, 140, 0.18);
+  outline: none;
+}
+
+.address-search__input-row button,
+.address-search__suggestions button {
+  min-height: 48px;
+  border: 1px solid var(--iziline-border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--iziline-navy);
+  cursor: pointer;
+  font-weight: 800;
+  padding: 0 14px;
+}
+
+.address-search__input-row button:hover,
+.address-search__suggestions button:hover {
+  background: var(--iziline-teal-light);
+}
+
+.address-search__suggestions {
+  display: grid;
+  gap: 8px;
+}
+
+.address-search__suggestions button {
+  min-height: 42px;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.seats-field {
     align-items: stretch;
     flex-direction: column;
     padding: 14px;
@@ -274,4 +422,20 @@
   .button {
     width: 100%;
   }
+}
+.address-search input[aria-invalid="true"] {
+  border-color: #b42318;
+}
+
+.address-search__error,
+.new-trip-form__error,
+.seats-field__error {
+  color: #b42318;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.seats-field__error {
+  display: block;
+  margin-top: 8px;
 }
