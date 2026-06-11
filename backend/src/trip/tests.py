@@ -11,15 +11,13 @@ from rest_framework.test import APITestCase
 from trip.models import Trip
 from trip.selectors import trip_get, trip_list
 from trip.serializers import TripCreateSerializer, TripDetailSerializer, TripListSerializer
-from trip.services import calculate_fare, trip_create
+from trip.services import calculate_fare, trip_cancel, trip_create
 
 User = get_user_model()
 
 
 class CalculateFareTests(APITestCase):
     def test_known_route_divides_cost_by_passengers_plus_driver(self):
-        # Teresina -> Parnaiba = 339 km; custo = 339 * 0.30 = 101.70
-        # 2 vagas + motorista = 3 pessoas; 101.70 / 3 = 33.90
         fare = calculate_fare(origin="Teresina", destination="Parnaiba", seats_available=2)
         self.assertEqual(fare, Decimal("33.90"))
 
@@ -29,7 +27,6 @@ class CalculateFareTests(APITestCase):
         self.assertEqual(fare_plain, fare_accent)
 
     def test_unknown_route_uses_default_distance(self):
-        # Distancia default = 100 km; custo = 30.00; 1 vaga + motorista = 2; 30.00 / 2 = 15.00
         fare = calculate_fare(origin="Cidade X", destination="Cidade Y", seats_available=1)
         self.assertEqual(fare, Decimal("15.00"))
 
@@ -85,9 +82,57 @@ class TripCreateServiceTests(APITestCase):
         self.assertEqual(Trip.objects.count(), 0)
 
 
+class TripCancelServiceTests(APITestCase):
+    def setUp(self):
+        self.driver = User.objects.create_user(username="motorista_cancel", password="x")
+        self.other = User.objects.create_user(username="outro_cancel", password="x")
+        self.trip = Trip.objects.create(
+            driver=self.driver,
+            origin="Teresina",
+            destination="Parnaiba",
+            departure_at=timezone.now() + timedelta(days=1),
+            seats_available=3,
+            price=Decimal("10.00"),
+        )
+
+    def test_driver_can_cancel_trip(self):
+        trip = trip_cancel(trip_id=self.trip.id, user=self.driver)
+        self.assertTrue(trip.is_cancelled)
+        self.trip.refresh_from_db()
+        self.assertTrue(self.trip.is_cancelled)
+
+    def test_cancels_active_bookings_in_cascade(self):
+        from booking.models import Booking
+        passenger = User.objects.create_user(username="passageiro_cancel", password="x")
+        booking = Booking.objects.create(trip=self.trip, passenger=passenger)
+        self.assertFalse(booking.is_cancelled)
+
+        trip_cancel(trip_id=self.trip.id, user=self.driver)
+
+        booking.refresh_from_db()
+        self.assertTrue(booking.is_cancelled)
+
+    def test_non_driver_cannot_cancel(self):
+        from rest_framework.exceptions import PermissionDenied
+        with self.assertRaises(PermissionDenied):
+            trip_cancel(trip_id=self.trip.id, user=self.other)
+        self.trip.refresh_from_db()
+        self.assertFalse(self.trip.is_cancelled)
+
+    def test_cannot_cancel_already_cancelled_trip(self):
+        self.trip.is_cancelled = True
+        self.trip.save()
+        with self.assertRaises(ValidationError):
+            trip_cancel(trip_id=self.trip.id, user=self.driver)
+
+    def test_nonexistent_trip_raises_404(self):
+        with self.assertRaises(Http404):
+            trip_cancel(trip_id=999999, user=self.driver)
+
+
 class TripSelectorTests(APITestCase):
     def setUp(self):
-        self.driver = User.objects.create_user(username="motorista", password="x")
+        self.driver = User.objects.create_user(username="motorista_sel", password="x")
         self.future = timezone.now() + timedelta(days=2)
 
     def _make_trip(self, **overrides):
@@ -105,9 +150,9 @@ class TripSelectorTests(APITestCase):
 
     def test_list_returns_only_bookable_trips(self):
         valid = self._make_trip()
-        self._make_trip(seats_available=0)  # lotada
-        self._make_trip(is_cancelled=True)  # cancelada
-        self._make_trip(departure_at=timezone.now() - timedelta(days=1))  # passada
+        self._make_trip(seats_available=0)
+        self._make_trip(is_cancelled=True)
+        self._make_trip(departure_at=timezone.now() - timedelta(days=1))
         results = list(trip_list())
         self.assertEqual(results, [valid])
 
@@ -136,7 +181,7 @@ class TripSelectorTests(APITestCase):
 class TripSerializerTests(APITestCase):
     def setUp(self):
         self.driver = User.objects.create_user(
-            username="motorista", password="x", first_name="Ana", last_name="Silva"
+            username="motorista_ser", password="x", first_name="Ana", last_name="Silva"
         )
         self.trip = Trip.objects.create(
             driver=self.driver,
@@ -168,7 +213,7 @@ class TripSerializerTests(APITestCase):
         self.driver.last_name = ""
         self.driver.save()
         data = TripDetailSerializer(self.trip).data
-        self.assertEqual(data["driver_name"], "motorista")
+        self.assertEqual(data["driver_name"], "motorista_ser")
 
     def test_list_serializer_includes_core_fields(self):
         data = TripListSerializer(self.trip).data
@@ -193,10 +238,9 @@ class TripSerializerTests(APITestCase):
 
 class TripEndpointTests(APITestCase):
     def setUp(self):
-        self.driver = User.objects.create_user(username="motorista", password="x")
+        self.driver = User.objects.create_user(username="motorista_ep", password="x")
         self.future = timezone.now() + timedelta(days=1)
 
-    # --- POST /api/trips/ ---
     def test_create_requires_authentication(self):
         url = reverse("trip-list-create")
         response = self.client.post(url, {
@@ -218,7 +262,7 @@ class TripEndpointTests(APITestCase):
         }, format="json")
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data["price"], "33.90")
-        self.assertEqual(response.data["driver_name"], "motorista")
+        self.assertEqual(response.data["driver_name"], "motorista_ep")
 
     def test_create_rejects_past_departure_with_400(self):
         self.client.force_authenticate(self.driver)
@@ -231,7 +275,6 @@ class TripEndpointTests(APITestCase):
         }, format="json")
         self.assertEqual(response.status_code, 400)
 
-    # --- GET /api/trips/ ---
     def test_list_requires_authentication(self):
         url = reverse("trip-list-create")
         response = self.client.get(url)
@@ -286,7 +329,6 @@ class TripEndpointTests(APITestCase):
         response = self.client.get(url, {"date": "not-a-date"})
         self.assertEqual(response.status_code, 400)
 
-    # --- GET /api/trips/{id}/ ---
     def test_detail_returns_200(self):
         self.client.force_authenticate(self.driver)
         trip = Trip.objects.create(
@@ -303,3 +345,63 @@ class TripEndpointTests(APITestCase):
         url = reverse("trip-detail", args=[999999])
         response = self.client.get(url)
         self.assertEqual(response.status_code, 404)
+
+
+class TripCancelEndpointTests(APITestCase):
+    def setUp(self):
+        self.driver = User.objects.create_user(username="motorista_cancel_ep", password="x")
+        self.other = User.objects.create_user(username="outro_cancel_ep", password="x")
+        self.trip = Trip.objects.create(
+            driver=self.driver,
+            origin="Teresina",
+            destination="Parnaiba",
+            departure_at=timezone.now() + timedelta(days=1),
+            seats_available=3,
+            price=Decimal("10.00"),
+        )
+
+    def test_cancel_requires_authentication(self):
+        url = reverse("trip-cancel", args=[self.trip.id])
+        response = self.client.patch(url)
+        self.assertEqual(response.status_code, 401)
+
+    def test_driver_can_cancel_returns_200(self):
+        self.client.force_authenticate(self.driver)
+        url = reverse("trip-cancel", args=[self.trip.id])
+        response = self.client.patch(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["is_cancelled"])
+
+    def test_non_driver_returns_403(self):
+        self.client.force_authenticate(self.other)
+        url = reverse("trip-cancel", args=[self.trip.id])
+        response = self.client.patch(url)
+        self.assertEqual(response.status_code, 403)
+        self.trip.refresh_from_db()
+        self.assertFalse(self.trip.is_cancelled)
+
+    def test_already_cancelled_returns_400(self):
+        self.trip.is_cancelled = True
+        self.trip.save()
+        self.client.force_authenticate(self.driver)
+        url = reverse("trip-cancel", args=[self.trip.id])
+        response = self.client.patch(url)
+        self.assertEqual(response.status_code, 400)
+
+    def test_nonexistent_trip_returns_404(self):
+        self.client.force_authenticate(self.driver)
+        url = reverse("trip-cancel", args=[999999])
+        response = self.client.patch(url)
+        self.assertEqual(response.status_code, 404)
+
+    def test_cancels_active_bookings_in_cascade(self):
+        from booking.models import Booking
+        passenger = User.objects.create_user(username="pass_cascade_ep", password="x")
+        booking = Booking.objects.create(trip=self.trip, passenger=passenger)
+
+        self.client.force_authenticate(self.driver)
+        url = reverse("trip-cancel", args=[self.trip.id])
+        self.client.patch(url)
+
+        booking.refresh_from_db()
+        self.assertTrue(booking.is_cancelled)
