@@ -266,6 +266,11 @@
   color: var(--iziline-navy);
 }
 
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
 .button:focus-visible,
 .seats-control button:focus-visible {
   outline: 3px solid rgba(79, 143, 140, 0.28);

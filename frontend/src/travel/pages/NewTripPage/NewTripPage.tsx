@@ -1,5 +1,7 @@
-﻿import { useMemo, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { FormField } from "../../../components/FormField/FormField";
+import { getPossibleAddresses } from "../../service/locationService";
+import { createTrip } from "../../service/serviceApi";
 import type { NewTripFormData } from "../../../types/trip";
 import izilineLogo from "../../../assets/iziline.png";
 import "./NewTripPage.css";
@@ -12,23 +14,12 @@ const initialFormData: NewTripFormData = {
   availableSeats: 1,
 };
 
-const addressSuggestions = [
-  "Terminal Rodoviário Lucídio Portella, Teresina",
-  "Avenida Frei Serafim, Centro, Teresina",
-  "Shopping Rio Poty, Teresina",
-  "Universidade Federal do Piauí, Teresina",
-  "Avenida Presidente Kennedy, Teresina",
-  "Terminal Rodoviário de Floriano",
-  "Avenida Eurípedes de Aguiar, Floriano",
-  "Centro Comercial de Floriano",
-  "Hospital Regional Tibério Nunes, Floriano",
-  "Universidade Estadual do Piauí, Floriano",
-];
-
 const currentLocationLabel = "Minha localização atual";
+const lastCreatedTripStorageKey = "iziline:lastCreatedTrip";
 
 type AddressFieldName = "origin" | "destination";
 type NewTripFormErrors = Partial<Record<keyof NewTripFormData | "departure", string>>;
+type NewTripStage = "form" | "costDetails";
 
 type AddressSearchProps = {
   id: AddressFieldName;
@@ -39,26 +30,6 @@ type AddressSearchProps = {
   allowCurrentLocation?: boolean;
   onChange: (field: AddressFieldName, value: string) => void;
 };
-
-function normalizeText(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-}
-
-async function searchAddressSuggestions(query: string) {
-  const search = normalizeText(query.trim());
-
-  if (search.length < 2) {
-    return [];
-  }
-
-  // Troque esta lista por uma chamada de API de autocomplete quando ela existir.
-  return addressSuggestions
-    .filter((address) => normalizeText(address).includes(search))
-    .slice(0, 4);
-}
 
 function AddressSearch({
   id,
@@ -72,29 +43,45 @@ function AddressSearch({
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState("");
   const [isLocating, setIsLocating] = useState(false);
+  const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
 
-  const filteredSuggestions = useMemo(() => {
-    if (!isSuggestionsOpen || value === selectedSuggestion) {
-      return [];
+  useEffect(() => {
+    if (
+      !isSuggestionsOpen ||
+      value === selectedSuggestion ||
+      value === currentLocationLabel
+    ) {
+      return;
     }
 
-    const search = normalizeText(value.trim());
+    let shouldIgnore = false;
 
-    if (search.length < 2 || value === currentLocationLabel) {
-      return [];
+    async function loadSuggestions() {
+      const suggestions = await getPossibleAddresses(value);
+
+      if (!shouldIgnore) {
+        setFilteredSuggestions(suggestions);
+      }
     }
 
-    return addressSuggestions
-      .filter((address) => normalizeText(address).includes(search))
-      .slice(0, 4);
+    void loadSuggestions();
+
+    return () => {
+      shouldIgnore = true;
+    };
   }, [isSuggestionsOpen, selectedSuggestion, value]);
+
+  const suggestionsToShow =
+    isSuggestionsOpen &&
+    value !== selectedSuggestion &&
+    value !== currentLocationLabel
+      ? filteredSuggestions
+      : [];
 
   function handleInputChange(nextValue: string) {
     setSelectedSuggestion("");
     setIsSuggestionsOpen(true);
     onChange(id, nextValue);
-
-    void searchAddressSuggestions(nextValue);
   }
 
   function selectSuggestion(suggestion: string) {
@@ -168,9 +155,9 @@ function AddressSearch({
         </span>
       )}
 
-      {filteredSuggestions.length > 0 && (
+      {suggestionsToShow.length > 0 && (
         <div className="address-search__suggestions">
-          {filteredSuggestions.map((suggestion) => (
+          {suggestionsToShow.map((suggestion) => (
             <button
               key={suggestion}
               type="button"
@@ -188,6 +175,8 @@ function AddressSearch({
 export function NewTripPage() {
   const [formData, setFormData] = useState<NewTripFormData>(initialFormData);
   const [errors, setErrors] = useState<NewTripFormErrors>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [stage, setStage] = useState<NewTripStage>("form");
 
   function updateField<Field extends keyof NewTripFormData>(
     field: Field,
@@ -268,7 +257,7 @@ export function NewTripPage() {
     return Object.keys(nextErrors).length === 0;
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!validateForm()) {
@@ -281,7 +270,23 @@ export function NewTripPage() {
       destination: formData.destination.trim(),
     };
 
-    console.log("Dados da nova viagem:", normalizedTripData);
+    setIsSubmitting(true);
+
+    try {
+      const createdTrip = await createTrip(normalizedTripData);
+
+      window.sessionStorage.setItem(
+        lastCreatedTripStorageKey,
+        JSON.stringify(createdTrip)
+      );
+      setStage("costDetails");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  if (stage === "costDetails") {
+    return null;
   }
 
   return (
@@ -387,8 +392,12 @@ export function NewTripPage() {
             <button className="button button--secondary" type="button">
               Cancelar
             </button>
-            <button className="button button--primary" type="submit">
-              Cadastrar viagem
+            <button
+              className="button button--primary"
+              type="submit"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Cadastrando..." : "Cadastrar viagem"}
             </button>
           </div>
         </form>
