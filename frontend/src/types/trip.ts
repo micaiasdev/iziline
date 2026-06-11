@@ -1,7 +1,12 @@
-export type NewTripFormData = {
+﻿export type NewTripFormData = {
   origin: string;
   destination: string;
   date: string;
   time: string;
   availableSeats: number;
+};
+
+export type TripPointsFormData = {
+  originPoint: string;
+  destinationPoint: string;
 };
