@@ -279,6 +279,12 @@
   gap: 12px;
 }
 
+.trip-review-card__error {
+  color: #b42318;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
 .trip-completed-card {
   align-content: center;
   text-align: center;

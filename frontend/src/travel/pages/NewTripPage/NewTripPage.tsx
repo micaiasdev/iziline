@@ -57,6 +57,7 @@ type TripCostCardProps = {
   tripData: NewTripFormData;
   costEstimate: TripCostEstimate;
   isSubmitting: boolean;
+  error?: string;
   onBack: () => void;
   onConfirm: () => void;
 };
@@ -211,6 +212,7 @@ function TripCostCard({
   tripData,
   costEstimate,
   isSubmitting,
+  error,
   onBack,
   onConfirm,
 }: TripCostCardProps) {
@@ -241,7 +243,7 @@ function TripCostCard({
         </div>
         <div className="trip-detail">
           <span>Vagas</span>
-          <strong>{formatPassengers(tripData.availableSeats)}</strong>
+          <strong>{formatSeats(tripData.availableSeats)}</strong>
         </div>
         <div className="trip-detail">
           <span>Rateio</span>
@@ -291,6 +293,12 @@ function TripCostCard({
         </div>
       </section>
 
+      {error && (
+        <span className="trip-review-card__error" role="alert">
+          {error}
+        </span>
+      )}
+
       <div className="trip-review-card__actions">
         <button
           className="button button--secondary"
@@ -336,7 +344,7 @@ function CompletedTripCard({
           <span>Saída</span>
           <strong>{formatDateTime(createdTrip.departure_at)}</strong>
           <span>Vagas disponíveis</span>
-          <strong>{formatPassengers(createdTrip.seats_available)}</strong>
+          <strong>{formatSeats(createdTrip.seats_available)}</strong>
         </div>
       )}
 
@@ -383,8 +391,8 @@ function formatFuelPrice(value: number) {
   return `${formatCurrency(value)}/L`;
 }
 
-function formatPassengers(value: number) {
-  return value === 1 ? "1 passageiro" : `${value} passageiros`;
+function formatSeats(value: number) {
+  return value === 1 ? "1 vaga" : `${value} vagas`;
 }
 
 function formatOccupants(value: number) {
@@ -403,6 +411,8 @@ export function NewTripPage() {
     null
   );
   const [createdTrip, setCreatedTrip] = useState<TripResponse | null>(null);
+  const [costCalculationError, setCostCalculationError] = useState("");
+  const [confirmationError, setConfirmationError] = useState("");
 
   function updateField<Field extends keyof NewTripFormData>(
     field: Field,
@@ -418,6 +428,7 @@ export function NewTripPage() {
       [field]: undefined,
       departure: field === "date" || field === "time" ? undefined : currentErrors.departure,
     }));
+    setCostCalculationError("");
   }
 
   function updateAddressField(field: AddressFieldName, value: string) {
@@ -499,6 +510,8 @@ export function NewTripPage() {
     };
 
     setIsSubmitting(true);
+    setCostCalculationError("");
+    setConfirmationError("");
 
     try {
       const nextCostEstimate = await calculateTripCosts(normalizedTripData);
@@ -506,12 +519,17 @@ export function NewTripPage() {
       setPendingTripData(normalizedTripData);
       setCostEstimate(nextCostEstimate);
       setStage("costDetails");
+    } catch {
+      setCostCalculationError(
+        "Não foi possível calcular os custos da viagem. Tente novamente."
+      );
     } finally {
       setIsSubmitting(false);
     }
   }
 
   function handleBackToForm() {
+    setConfirmationError("");
     setStage("form");
   }
 
@@ -521,6 +539,7 @@ export function NewTripPage() {
     }
 
     setIsSubmitting(true);
+    setConfirmationError("");
 
     try {
       const nextCreatedTrip = await createTrip(pendingTripData);
@@ -531,6 +550,10 @@ export function NewTripPage() {
       );
       setCreatedTrip(nextCreatedTrip);
       setStage("completed");
+    } catch {
+      setConfirmationError(
+        "Não foi possível confirmar a viagem. Tente novamente."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -542,6 +565,8 @@ export function NewTripPage() {
     setPendingTripData(null);
     setCostEstimate(null);
     setCreatedTrip(null);
+    setCostCalculationError("");
+    setConfirmationError("");
     setStage("form");
   }
 
@@ -561,6 +586,7 @@ export function NewTripPage() {
             tripData={pendingTripData}
             costEstimate={costEstimate}
             isSubmitting={isSubmitting}
+            error={confirmationError}
             onBack={handleBackToForm}
             onConfirm={handleConfirmTrip}
           />
@@ -649,6 +675,12 @@ export function NewTripPage() {
 
           {errors.departure && (
             <span className="new-trip-form__error">{errors.departure}</span>
+          )}
+
+          {costCalculationError && (
+            <span className="new-trip-form__error" role="alert">
+              {costCalculationError}
+            </span>
           )}
 
           <div className="seats-field">
