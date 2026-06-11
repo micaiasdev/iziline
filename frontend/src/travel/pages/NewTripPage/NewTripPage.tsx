@@ -12,15 +12,8 @@ const initialFormData: NewTripFormData = {
   availableSeats: 1,
 };
 
-type NewTripFormErrors = Partial<Record<keyof NewTripFormData | "departure", string>>;
-
-type NewTripPageProps = {
-  onContinue: (tripData: NewTripFormData) => void;
-};
-
-export function NewTripPage({ onContinue }: NewTripPageProps) {
+export function NewTripPage() {
   const [formData, setFormData] = useState<NewTripFormData>(initialFormData);
-  const [errors, setErrors] = useState<NewTripFormErrors>({});
 
   function updateField<Field extends keyof NewTripFormData>(
     field: Field,
@@ -30,23 +23,12 @@ export function NewTripPage({ onContinue }: NewTripPageProps) {
       ...currentData,
       [field]: value,
     }));
-
-    setErrors((currentErrors) => ({
-      ...currentErrors,
-      [field]: undefined,
-      departure: field === "date" || field === "time" ? undefined : currentErrors.departure,
-    }));
   }
 
   function decreaseSeats() {
     setFormData((currentData) => ({
       ...currentData,
       availableSeats: Math.max(1, currentData.availableSeats - 1),
-    }));
-
-    setErrors((currentErrors) => ({
-      ...currentErrors,
-      availableSeats: undefined,
     }));
   }
 
@@ -55,63 +37,11 @@ export function NewTripPage({ onContinue }: NewTripPageProps) {
       ...currentData,
       availableSeats: Math.min(8, currentData.availableSeats + 1),
     }));
-
-    setErrors((currentErrors) => ({
-      ...currentErrors,
-      availableSeats: undefined,
-    }));
-  }
-
-  function validateForm() {
-    const nextErrors: NewTripFormErrors = {};
-
-    if (!formData.origin.trim()) {
-      nextErrors.origin = "Preencha o endereço de origem.";
-    }
-
-    if (!formData.destination.trim()) {
-      nextErrors.destination = "Preencha o endereço de destino.";
-    }
-
-    if (!formData.date) {
-      nextErrors.date = "Preencha a data da viagem.";
-    }
-
-    if (!formData.time) {
-      nextErrors.time = "Preencha o horário de saída.";
-    }
-
-    if (!formData.availableSeats || formData.availableSeats < 1) {
-      nextErrors.availableSeats = "Informe pelo menos 1 vaga disponível.";
-    }
-
-    if (formData.date && formData.time) {
-      const departureDate = new Date(`${formData.date}T${formData.time}`);
-
-      if (departureDate <= new Date()) {
-        nextErrors.departure = "A data e o horário precisam ser futuros.";
-      }
-    }
-
-    setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
-
-    const normalizedTripData: NewTripFormData = {
-      ...formData,
-      origin: formData.origin.trim(),
-      destination: formData.destination.trim(),
-    };
-
-    console.log("Dados da nova viagem:", normalizedTripData);
-    onContinue(normalizedTripData);
+    console.log("Dados da nova viagem:", formData);
   }
 
   return (
@@ -125,7 +55,7 @@ export function NewTripPage({ onContinue }: NewTripPageProps) {
           />
         </div>
 
-        <form className="new-trip-form" onSubmit={handleSubmit} noValidate>
+        <form className="new-trip-form" onSubmit={handleSubmit}>
           <header className="new-trip-form__header">
             <h1 id="new-trip-title">Cadastrar nova viagem</h1>
           </header>
@@ -137,7 +67,6 @@ export function NewTripPage({ onContinue }: NewTripPageProps) {
               type="text"
               placeholder="Ex: Teresina"
               value={formData.origin}
-              error={errors.origin}
               onChange={(event) => updateField("origin", event.target.value)}
             />
 
@@ -147,7 +76,6 @@ export function NewTripPage({ onContinue }: NewTripPageProps) {
               type="text"
               placeholder="Ex: Floriano"
               value={formData.destination}
-              error={errors.destination}
               onChange={(event) =>
                 updateField("destination", event.target.value)
               }
@@ -160,7 +88,6 @@ export function NewTripPage({ onContinue }: NewTripPageProps) {
               label="Data da viagem"
               type="date"
               value={formData.date}
-              error={errors.date}
               onChange={(event) => updateField("date", event.target.value)}
             />
 
@@ -169,22 +96,14 @@ export function NewTripPage({ onContinue }: NewTripPageProps) {
               label="Horário de saída"
               type="time"
               value={formData.time}
-              error={errors.time}
               onChange={(event) => updateField("time", event.target.value)}
             />
           </div>
-
-          {errors.departure && (
-            <span className="new-trip-form__error">{errors.departure}</span>
-          )}
 
           <div className="seats-field">
             <div>
               <label htmlFor="availableSeats">Vagas disponíveis</label>
               <p>Escolha quantas pessoas podem viajar com você.</p>
-              {errors.availableSeats && (
-                <span className="seats-field__error">{errors.availableSeats}</span>
-              )}
             </div>
 
             <div className="seats-control">
@@ -201,7 +120,6 @@ export function NewTripPage({ onContinue }: NewTripPageProps) {
                 min="1"
                 max="8"
                 value={formData.availableSeats}
-                aria-invalid={Boolean(errors.availableSeats)}
                 onChange={(event) =>
                   updateField("availableSeats", Number(event.target.value))
                 }

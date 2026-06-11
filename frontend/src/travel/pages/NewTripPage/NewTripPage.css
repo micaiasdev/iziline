@@ -160,18 +160,6 @@
   text-align: center;
 }
 
-
-.new-trip-form__error,
-.seats-field__error {
-  color: #b42318;
-  font-size: 0.9rem;
-  line-height: 1.35;
-}
-
-.seats-field__error {
-  display: block;
-  margin-top: 8px;
-}
 .new-trip-form__actions {
   display: flex;
   justify-content: flex-end;
@@ -279,19 +267,7 @@
     width: 100%;
   }
 
-  
-.new-trip-form__error,
-.seats-field__error {
-  color: #b42318;
-  font-size: 0.9rem;
-  line-height: 1.35;
-}
-
-.seats-field__error {
-  display: block;
-  margin-top: 8px;
-}
-.new-trip-form__actions {
+  .new-trip-form__actions {
     flex-direction: column-reverse;
   }
 
