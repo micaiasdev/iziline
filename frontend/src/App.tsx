@@ -31,7 +31,7 @@ function App() {
 
   return (
     <>
-      <nav className="app-navigation" aria-label="Navegação principal">
+      <nav className="app-navigation" aria-label="Navegacao principal">
         <button
           type="button"
           className={view === 'newTrip' ? 'app-navigation__item active' : 'app-navigation__item'}

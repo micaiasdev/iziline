@@ -14,21 +14,21 @@
 
 .app-navigation__item {
   min-height: 42px;
+  padding: 0 16px;
+  color: #263647;
+  background: #ffffff;
   border: 1px solid #d7e1e0;
   border-radius: 8px;
-  background: #ffffff;
-  color: #263647;
   cursor: pointer;
   font-size: 0.95rem;
   font-weight: 800;
-  padding: 0 16px;
 }
 
 .app-navigation__item:hover,
 .app-navigation__item.active {
+  color: #3f7774;
   background: #e7f1f0;
   border-color: rgba(79, 143, 140, 0.38);
-  color: #3f7774;
 }
 
 .app-navigation__item:focus-visible {

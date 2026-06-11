@@ -12,5 +12,5 @@ export type RideSearchResult = {
   departureAt: string;
   seatsAvailable: number;
   price: string;
-  carModel: string;
+  carModel?: string;
 };

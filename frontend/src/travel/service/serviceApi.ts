@@ -1,8 +1,11 @@
+import { isAxiosError } from 'axios'
+
 import type {
   CreateTripInput,
   CreateTripPayload,
   TripResponse
 } from '../../types/trip'
+import { apiClient } from './apiClient'
 
 export class ApiError extends Error {
   readonly status: number
@@ -31,15 +34,11 @@ export async function createTrip(
 ): Promise<TripResponse> {
   const payload = buildCreateTripPayload(input)
 
-  return {
-    id: Date.now(),
-    driver_name: 'Motorista',
-    origin: payload.origin,
-    destination: payload.destination,
-    departure_at: payload.departure_at,
-    seats_available: payload.seats_available,
-    price: '0.00',
-    is_cancelled: false
+  try {
+    const response = await apiClient.post<TripResponse>('/api/trips/', payload)
+    return response.data
+  } catch (error) {
+    throw buildApiError(error, 'Nao foi possivel cadastrar a viagem.')
   }
 }
 
@@ -50,5 +49,33 @@ function buildCreateTripPayload(input: CreateTripInput): CreateTripPayload {
     departure_at: buildDepartureAt(input.date, input.time),
     seats_available: input.availableSeats
   }
+}
+
+function buildApiError(error: unknown, fallbackMessage: string): ApiError {
+  if (error instanceof ApiError) {
+    return error
+  }
+
+  if (isAxiosError(error)) {
+    return new ApiError(
+      getApiErrorMessage(error.response?.data) ?? fallbackMessage,
+      error.response?.status ?? 0,
+      error.response?.data
+    )
+  }
+
+  return new ApiError(fallbackMessage, 0, error)
+}
+
+function getApiErrorMessage(body: unknown): string | undefined {
+  if (!body || typeof body !== 'object') {
+    return undefined
+  }
+
+  if ('detail' in body && typeof body.detail === 'string') {
+    return body.detail
+  }
+
+  return undefined
 }
 

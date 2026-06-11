@@ -162,7 +162,7 @@ function RideResultCard({ ride }: { ride: RideSearchResult }) {
           <span>Motorista</span>
           <strong>{ride.driverName}</strong>
         </div>
-        <span>{ride.carModel}</span>
+        {ride.carModel && <span>{ride.carModel}</span>}
       </div>
 
       <div className="ride-card__route">
