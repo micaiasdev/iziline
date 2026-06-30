@@ -136,8 +136,8 @@ function TripCard({ trip, onCancelled }: TripCardProps) {
     setCancelError("");
 
     try {
-      const updatedTrip = await cancelTrip(trip.id);
-      onCancelled(updatedTrip);
+      const { is_cancelled } = await cancelTrip(trip.id);
+      onCancelled({ ...trip, is_cancelled });
       setIsModalOpen(false);
     } catch (error) {
       setCancelError(
