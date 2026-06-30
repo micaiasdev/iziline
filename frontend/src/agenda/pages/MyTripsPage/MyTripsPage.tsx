@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { getUserAgenda } from "../../service/agendaService";
+import { cancelTrip, getUserAgenda } from "../../service/agendaService";
+import { ApiError } from "../../../travel/service/apiError";
+import { ConfirmModal } from "../../../components/ConfirmModal/ConfirmModal";
 import type { AgendaTrip, AgendaWhen } from "../../../types/agenda";
 import "./MyTripsPage.css";
 
@@ -55,6 +57,12 @@ export function MyTripsPage() {
     };
   }, [when]);
 
+  function handleTripCancelled(updatedTrip: AgendaTrip) {
+    setTrips((currentTrips) =>
+      currentTrips.map((trip) => (trip.id === updatedTrip.id ? updatedTrip : trip))
+    );
+  }
+
   return (
     <main className="my-trips-page">
       <section className="my-trips-shell" aria-labelledby="my-trips-title">
@@ -95,7 +103,7 @@ export function MyTripsPage() {
         ) : trips.length > 0 ? (
           <div className="my-trips-list">
             {trips.map((trip) => (
-              <TripCard key={trip.id} trip={trip} />
+              <TripCard key={trip.id} trip={trip} onCancelled={handleTripCancelled} />
             ))}
           </div>
         ) : (
@@ -113,7 +121,35 @@ export function MyTripsPage() {
   );
 }
 
-function TripCard({ trip }: { trip: AgendaTrip }) {
+type TripCardProps = {
+  trip: AgendaTrip;
+  onCancelled: (updatedTrip: AgendaTrip) => void;
+};
+
+function TripCard({ trip, onCancelled }: TripCardProps) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState("");
+
+  async function handleConfirmCancel() {
+    setIsCancelling(true);
+    setCancelError("");
+
+    try {
+      const updatedTrip = await cancelTrip(trip.id);
+      onCancelled(updatedTrip);
+      setIsModalOpen(false);
+    } catch (error) {
+      setCancelError(
+        error instanceof ApiError
+          ? error.message
+          : "Não foi possível cancelar essa viagem. Tente novamente."
+      );
+    } finally {
+      setIsCancelling(false);
+    }
+  }
+
   return (
     <article className="trip-card">
       <div className="trip-card__header">
@@ -156,6 +192,42 @@ function TripCard({ trip }: { trip: AgendaTrip }) {
           <strong>{formatPrice(trip.price)}</strong>
         </div>
       </div>
+
+      {!trip.is_cancelled && (
+        <div className="trip-card__actions">
+          <button
+            type="button"
+            className="trip-card__cancel-button"
+            onClick={() => setIsModalOpen(true)}
+            disabled={trip.role === "passenger"}
+            title={
+              trip.role === "passenger"
+                ? "Cancelamento de reserva pelo passageiro ainda não está disponível por aqui."
+                : undefined
+            }
+          >
+            Cancelar
+          </button>
+
+          {cancelError && (
+            <span className="trip-card__cancel-error" role="alert">
+              {cancelError}
+            </span>
+          )}
+        </div>
+      )}
+
+      {isModalOpen && (
+        <ConfirmModal
+          title="Cancelar viagem"
+          message={`Tem certeza que deseja cancelar a viagem de ${trip.origin} para ${trip.destination}? Essa ação não pode ser desfeita.`}
+          confirmLabel="Cancelar viagem"
+          cancelLabel="Voltar"
+          isConfirming={isCancelling}
+          onConfirm={handleConfirmCancel}
+          onCancel={() => setIsModalOpen(false)}
+        />
+      )}
     </article>
   );
 }

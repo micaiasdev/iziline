@@ -149,6 +149,41 @@
   border-top: 1px solid var(--iziline-border);
 }
 
+.trip-card__actions {
+  display: grid;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--iziline-border);
+}
+
+.trip-card__cancel-button {
+  justify-self: start;
+  min-height: 44px;
+  padding: 0 18px;
+  background: #ffffff;
+  border: 1px solid #b42318;
+  border-radius: 8px;
+  color: #b42318;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.trip-card__cancel-button:hover:not(:disabled) {
+  background: #fdecea;
+}
+
+.trip-card__cancel-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.trip-card__cancel-error {
+  color: #b42318;
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
 .trip-card span,
 .my-trips-empty p {
   color: var(--iziline-muted);
