@@ -33,14 +33,14 @@ class Location(models.Model):
 class Trip(models.Model):
 
 	driver = models.ForeignKey("trip.ProfileDriver", verbose_name=("Viagem"), on_delete=models.SET_NULL, null=True, related_name='trips')
-	origin_city = models.ForeignKey('trip.City', null=True, on_delete=models.SET_NULL)
-	destine_city = models.ForeignKey('trip.City', null=True, on_delete=models.SET_NULL)
+	origin_city = models.ForeignKey('trip.City', null=True, on_delete=models.SET_NULL, related_name='+')
+	destine_city = models.ForeignKey('trip.City', null=True, on_delete=models.SET_NULL, related_name='+')
 	available_spots = models.IntegerField()
 
 	#Recalculadas a cada nova tripstop confirmada no booking 
 	line_trip = models.JSONField(null=True, blank=True)
 	total_distance_km = models.FloatField(blank=True, null=True)
-	total_duration_km = models.FloatField(blank=True, null=True)
+	total_duration_min = models.FloatField(blank=True, null=True)
 	created_at = models.DateTimeField(auto_now_add=True)
 	updated_at = models.DateTimeField(auto_now=True)
 	
