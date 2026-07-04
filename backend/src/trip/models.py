@@ -1,21 +1,82 @@
-from django.conf import settings
 from django.db import models
+from django.conf import settings
+from django.db.models import Q
+
+class ProfileDriver(models.Model):
+     
+	user = models.OneToOneField(settings.AUTH_USER_MODEL,
+																on_delete=models.CASCADE,
+																related_name='driver_profile'
+														  )
+	is_verified = models.BooleanField(
+				default=False,
+				help_text="verificações futuras (CNH, veículo etc.)",
+				)
+     
+	created_at = models.DateTimeField(auto_now_add=True)
+
+
+class City(models.Model):
+	name = models.CharField(max_length=48)
+	state = models.CharField(max_length=2)
+	mapbox_place_id = models.CharField(max_length=100, unique=True, db_index=True) 
+
+class Location(models.Model):
+	name = models.CharField(max_length=128)
+	formatted_address = models.CharField(max_length=256 )
+	city = models.ForeignKey('trip.City', on_delete=models.CASCADE, related_name='locations')
+	latitude = models.FloatField()
+	longitude = models.FloatField()
+	created_at = models.DateTimeField(auto_now_add=True)
 
 
 class Trip(models.Model):
-	
-	driver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='trips')
-	origin = models.CharField(max_length=255)
-	destination = models.CharField(max_length=255)
-	departure_at = models.DateTimeField()
-	seats_available = models.PositiveIntegerField(default=1)
-	price = models.DecimalField(max_digits=8, decimal_places=2, default=0)
-	is_cancelled = models.BooleanField(default=False)
+
+	driver = models.ForeignKey("trip.ProfileDriver", verbose_name=("Viagem"), on_delete=models.SET_NULL, null=True, related_name='trips')
+	origin_city = models.ForeignKey('trip.City', null=True, on_delete=models.SET_NULL)
+	destine_city = models.ForeignKey('trip.City', null=True, on_delete=models.SET_NULL)
+	available_spots = models.IntegerField()
+
+	#Recalculadas a cada nova tripstop confirmada no booking 
+	line_trip = models.JSONField(null=True, blank=True)
+	total_distance_km = models.FloatField(blank=True, null=True)
+	total_duration_km = models.FloatField(blank=True, null=True)
 	created_at = models.DateTimeField(auto_now_add=True)
 	updated_at = models.DateTimeField(auto_now=True)
+	
+	#Estágios de uma trip 
+	class Status(models.TextChoices):
+		OPEN = "open", "Aceitando passageiros"
+		FULL = "full", "Sem vagas disponíveis"
+		IN_PROGRESS = "in_progress", "Já iniciada"
+		FINISHED = "finished", "Finalizada"
+		CANCELLED = "cancelled", "Cancelada"
 
-	class Meta:
-		ordering = ['-departure_at']
+	status = models.CharField(max_length=16, choices=Status.choices, default=Status.OPEN)
 
-	def __str__(self) -> str:
-		return f"Trip {self.id} — {self.origin} → {self.destination} @ {self.departure_at.isoformat()}"
+
+class TripStop(models.Model):
+	trip = models.ForeignKey('trip.Trip', on_delete=models.CASCADE)
+	location = models.ForeignKey('trip.Location', on_delete=models.SET_NULL)
+	order = models.IntegerField(
+	)
+
+
+class Booking(models.Model):
+  
+	class Status(models.TextChoices):
+		PENDING = "pending", "Aguardando motorista"
+		CONFIRMED = "confirmed", "Confirmada"
+		REJECTED = "rejected", "Recusada"
+		CANCELLED = "cancelled", "Cancelada pelo passageiro"
+
+	trip = models.ForeignKey(Trip, related_name="bookings", on_delete=models.CASCADE)
+	passenger = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="bookings", on_delete=models.CASCADE,)
+	pickup_stop = models.ForeignKey(TripStop, related_name="pickup_bookings", on_delete=models.PROTECT)
+	dropoff_stop = models.ForeignKey(TripStop, related_name="dropoff_bookings", on_delete=models.PROTECT)
+	seats_requested = models.PositiveSmallIntegerField(default=1)
+	status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+
+	created_at = models.DateTimeField(auto_now_add=True)
+	confirmed_at = models.DateTimeField(null=True, blank=True)
+
