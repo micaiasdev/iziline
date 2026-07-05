@@ -138,4 +138,6 @@ REST_FRAMEWORK = {
     # Paginação é configurada por-view (TripPagination em trip/apis.py), pois as
     # views são APIView puras — um DEFAULT_PAGINATION_CLASS global não se aplica
     # a elas e só seria herdado por futuras GenericAPIView.
+
+    "EXCEPTION_HANDLER": "core.exceptions.exception_handler",
 }

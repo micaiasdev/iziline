@@ -1,10 +1,17 @@
+"""
+selectors.py
+
+Funções de LEITURA sobre o domínio de viagens. Nenhuma função aqui grava
+nada no banco — só monta queries e devolve dados.
+"""
+
 from __future__ import annotations
 
 from django.core.exceptions import PermissionDenied
-from django.db.models import Sum, QuerySet
+from django.db.models import QuerySet
 from django.utils import timezone
 
-from trip.models import Trip, TripStop, Booking, City, Location
+from .models import Trip, TripStop, Booking, City, Location
 
 
 # ---------------------------------------------------------------------------
@@ -21,10 +28,7 @@ def get_trips_opened(
     Versão "burra": compara só Trip.origin_city / Trip.destine_city.
 
     TODO (futuro): considerar TripStop -> Location -> City também, pra
-    achar viagens onde a cidade buscada aparece como parada intermediária,
-    não só como origem/destino "oficial" da trip. Quando isso for feito,
-    provavelmente vale indexar (ou desnormalizar) a relação
-    TripStop.location.city pra não precisar de um JOIN pesado a cada busca.
+    achar viagens onde a cidade buscada aparece como parada intermediária.
 
     date_start/date_end são opcionais:
     - nenhum dos dois: todas as trips OPEN a partir de agora
@@ -47,6 +51,10 @@ def get_trips_opened(
     return qs.select_related("origin_city", "destine_city", "driver").order_by("departure_time")
 
 
+def get_trip(trip_id: int) -> Trip:
+    return Trip.objects.select_related("driver", "origin_city", "destine_city").get(pk=trip_id)
+
+
 # ---------------------------------------------------------------------------
 # Requests de booking de uma trip (visão do motorista)
 # ---------------------------------------------------------------------------
@@ -58,9 +66,8 @@ def get_trip_booking_requests(
 ) -> QuerySet[Booking]:
     """
     Busca a trip garantindo que pertence a esse driver, depois lista os
-    booking requests dela. Por padrão só mostra PENDING (que é o caso de
-    uso: o motorista decidindo o que aceitar) — passe status=None pra ver
-    todos, independente do status.
+    booking requests dela. Por padrão só mostra PENDING — passe status=None
+    pra ver todos, independente do status.
     """
     try:
         trip = Trip.objects.get(pk=trip_id, driver_id=driver_profile_id)
@@ -85,14 +92,13 @@ def get_locations_of_city(city_id: int) -> QuerySet[Location]:
 
 
 # ---------------------------------------------------------------------------
-# Busca de cities por nome (case/acento-insensitive)
+# Busca de cities por nome
 # ---------------------------------------------------------------------------
 
 def search_cities_by_name(query: str) -> list[dict]:
     """
     Busca por nome usando `icontains` nativo do Django — já é
-    case-insensitive por padrão (ex: "teresina" encontra "Teresina").
-    Não ignora acentuação (MVP: exige o acento correto).
+    case-insensitive por padrão. Não ignora acentuação (MVP).
 
     Retorna já no formato pronto pro front: [{"id": 1, "label": "Teresina-PI"}, ...]
     """
@@ -154,10 +160,8 @@ def get_route_stops(trip: Trip) -> QuerySet[TripStop]:
 
 
 def get_confirmed_seats_count(trip: Trip) -> int:
-    total = Booking.objects.filter(
-        trip=trip, status=Booking.Status.CONFIRMED
-    ).aggregate(total=Sum("seats_requested"))["total"]
-    return total or 0
+    """Cada Booking confirmado ocupa exatamente 1 vaga."""
+    return Booking.objects.filter(trip=trip, status=Booking.Status.CONFIRMED).count()
 
 
 def get_available_seats(trip: Trip) -> int:

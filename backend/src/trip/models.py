@@ -54,7 +54,7 @@ class Trip(models.Model):
 		CANCELLED = "cancelled", "Cancelada"
 
 	status = models.CharField(max_length=16, choices=Status.choices, default=Status.OPEN)
-
+ 
 
 class TripStop(models.Model):
 	trip = models.ForeignKey('trip.Trip', on_delete=models.CASCADE)
