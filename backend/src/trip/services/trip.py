@@ -1,92 +1,171 @@
-import unicodedata
-from decimal import Decimal, ROUND_HALF_UP
+"""
+selectors.py
 
-from django.db import transaction
+Funções de LEITURA sobre o domínio de viagens. Nenhuma função aqui grava
+nada no banco — só monta queries e devolve dados.
+"""
+
+from __future__ import annotations
+
+from django.core.exceptions import PermissionDenied
+from django.db.models import Sum, QuerySet
 from django.utils import timezone
-from rest_framework.exceptions import ValidationError, PermissionDenied
 
-from trip.models import Trip
-
-
-# Tabela mock de distâncias entre cidades conhecidas (km).
-# Substituível por Google Routes API no futuro, sem alterar a assinatura.
-_KNOWN_DISTANCES_KM = {
-    frozenset({"teresina", "parnaiba"}): 339,
-    frozenset({"teresina", "picos"}): 320,
-    frozenset({"teresina", "floriano"}): 240,
-}
-_DEFAULT_DISTANCE_KM = 100
-_COST_PER_KM = Decimal("0.30")
+from ..models import Trip, TripStop, Booking, City, Location
 
 
-def _normalize_city(name):
-    """Minúsculas, sem acentos e sem espaços nas bordas, para casar chaves."""
-    stripped = unicodedata.normalize("NFKD", name.strip().lower())
-    return "".join(c for c in stripped if not unicodedata.combining(c))
+# ---------------------------------------------------------------------------
+# 1. Busca de viagens disponíveis
+# ---------------------------------------------------------------------------
 
-
-def calculate_fare(*, origin, destination, seats_available):
-    """Calcula o rateio por pessoa (mock).
-
-    custo_total = distancia_km * CUSTO_POR_KM
-    rateio = custo_total / (seats_available + 1)  # passageiros + motorista
-    Retorna Decimal arredondado a 2 casas.
+def get_trips_opened(
+    origin_city_id: int,
+    destine_city_id: int,
+    date_start=None,
+    date_end=None,
+) -> QuerySet[Trip]:
     """
-    if seats_available < 1:
-        raise ValidationError({"seats_available": "Deve haver ao menos 1 vaga."})
-    key = frozenset({_normalize_city(origin), _normalize_city(destination)})
-    distance_km = _KNOWN_DISTANCES_KM.get(key, _DEFAULT_DISTANCE_KM)
-    total_cost = Decimal(distance_km) * _COST_PER_KM
-    fare = total_cost / Decimal(seats_available + 1)
-    return fare.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    Versão "burra": compara só Trip.origin_city / Trip.destine_city.
 
+    TODO (futuro): considerar TripStop -> Location -> City também, pra
+    achar viagens onde a cidade buscada aparece como parada intermediária,
+    não só como origem/destino "oficial" da trip. Quando isso for feito,
+    provavelmente vale indexar (ou desnormalizar) a relação
+    TripStop.location.city pra não precisar de um JOIN pesado a cada busca.
 
-def trip_create(*, driver, origin, destination, departure_at, seats_available):
-    """Cria uma viagem aplicando regras de negócio e calculando o rateio."""
-    if departure_at <= timezone.now():
-        raise ValidationError({"departure_at": "A data/hora da viagem deve ser futura."})
-    if seats_available < 1:
-        raise ValidationError({"seats_available": "Deve haver ao menos 1 vaga."})
-
-    price = calculate_fare(
-        origin=origin,
-        destination=destination,
-        seats_available=seats_available,
-    )
-    return Trip.objects.create(
-        driver=driver,
-        origin=origin,
-        destination=destination,
-        departure_at=departure_at,
-        seats_available=seats_available,
-        price=price,
+    date_start/date_end são opcionais:
+    - nenhum dos dois: todas as trips OPEN a partir de agora
+    - só date_start: trips OPEN a partir dessa data
+    - os dois: trips OPEN dentro do intervalo [date_start, date_end]
+    """
+    qs = Trip.objects.filter(
+        status=Trip.Status.OPEN,
+        origin_city_id=origin_city_id,
+        destine_city_id=destine_city_id,
     )
 
+    if date_start and date_end:
+        qs = qs.filter(departure_time__range=(date_start, date_end))
+    elif date_start:
+        qs = qs.filter(departure_time__gte=date_start)
+    else:
+        qs = qs.filter(departure_time__gte=timezone.now())
 
-def trip_cancel(*, trip_id, user):
-    """Cancela uma viagem e todas as reservas ativas associadas.
- 
-    Apenas o motorista da viagem pode cancelar.
-    Viagens já canceladas não podem ser canceladas novamente.
+    return qs.select_related("origin_city", "destine_city", "driver").order_by("departure_time")
+
+
+# ---------------------------------------------------------------------------
+# 3. Requests de booking de uma trip (visão do motorista)
+# ---------------------------------------------------------------------------
+
+def get_trip_booking_requests(
+    driver_profile_id: int,
+    trip_id: int,
+    status: str | None = Booking.Status.PENDING,
+) -> QuerySet[Booking]:
     """
-    with transaction.atomic():
-        try:
-            trip = Trip.objects.select_for_update().get(id=trip_id)
-        except Trip.DoesNotExist:
-            from django.http import Http404
-            raise Http404
- 
-        if trip.driver_id != user.id:
-            raise PermissionDenied("Apenas o motorista pode cancelar esta viagem.")
- 
-        if trip.is_cancelled:
-            raise ValidationError({"trip": "Esta viagem já está cancelada."})
- 
-        trip.is_cancelled = True
-        trip.save(update_fields=["is_cancelled", "updated_at"])
- 
-        # Cancela em cascata todas as reservas ativas desta viagem
-        trip.bookings.filter(is_cancelled=False).update(is_cancelled=True)
- 
-        return trip
- 
+    Busca a trip garantindo que pertence a esse driver, depois lista os
+    booking requests dela. Por padrão só mostra PENDING (que é o caso de
+    uso: o motorista decidindo o que aceitar) — passe status=None pra ver
+    todos, independente do status.
+    """
+    try:
+        trip = Trip.objects.get(pk=trip_id, driver_id=driver_profile_id)
+    except Trip.DoesNotExist:
+        raise PermissionDenied("Essa viagem não existe ou não pertence a este motorista.")
+
+    qs = trip.bookings.select_related(
+        "passenger", "pickup_stop__location", "dropoff_stop__location"
+    )
+    if status is not None:
+        qs = qs.filter(status=status)
+
+    return qs.order_by("created_at")
+
+
+# ---------------------------------------------------------------------------
+# 6. Locations de uma city
+# ---------------------------------------------------------------------------
+
+def get_locations_of_city(city_id: int) -> QuerySet[Location]:
+    return Location.objects.filter(city_id=city_id).order_by("name")
+
+
+# ---------------------------------------------------------------------------
+# 7. Busca de cities por nome (case/acento-insensitive)
+# ---------------------------------------------------------------------------
+
+def search_cities_by_name(query: str) -> list[dict]:
+    """
+    Busca por nome usando `icontains` nativo do Django — já é
+    case-insensitive por padrão (ex: "teresina" encontra "Teresina").
+    Não ignora acentuação (MVP: exige o acento correto).
+
+    Retorna já no formato pronto pro front: [{"id": 1, "label": "Teresina-PI"}, ...]
+    """
+    cities = City.objects.filter(name__icontains=query).order_by("name")
+
+    return [
+        {"id": city.id, "label": f"{city.name}-{city.state}"}
+        for city in cities
+    ]
+
+
+# ---------------------------------------------------------------------------
+# 10. Bookings de um passageiro
+# ---------------------------------------------------------------------------
+
+def get_passenger_bookings(passenger_id: int) -> QuerySet[Booking]:
+    """Pro passageiro acompanhar o status de cada reserva que ele fez."""
+    return (
+        Booking.objects.filter(passenger_id=passenger_id)
+        .select_related("trip", "trip__origin_city", "trip__destine_city", "pickup_stop", "dropoff_stop")
+        .order_by("-created_at")
+    )
+
+
+# ---------------------------------------------------------------------------
+# Selectors de apoio (usados internamente pelos services)
+# ---------------------------------------------------------------------------
+
+def get_trip_stops(trip: Trip) -> QuerySet[TripStop]:
+    return trip.stops.select_related("location", "location__city").order_by("order")
+
+
+def get_endpoint_stops(trip: Trip) -> tuple[TripStop | None, TripStop | None]:
+    """(stop_de_origem, stop_de_destino) — os dois extremos (menor/maior order)."""
+    stops = list(get_trip_stops(trip))
+    if not stops:
+        return None, None
+    return stops[0], stops[-1]
+
+
+def get_confirmed_stop_ids(trip: Trip) -> set[int]:
+    confirmed = Booking.objects.filter(trip=trip, status=Booking.Status.CONFIRMED)
+    pickup_ids = confirmed.values_list("pickup_stop_id", flat=True)
+    dropoff_ids = confirmed.values_list("dropoff_stop_id", flat=True)
+    return set(pickup_ids) | set(dropoff_ids)
+
+
+def get_route_stops(trip: Trip) -> QuerySet[TripStop]:
+    """Stops que devem estar na geometria agora: extremos + intermediários com booking confirmado."""
+    origin_stop, destination_stop = get_endpoint_stops(trip)
+    stop_ids = get_confirmed_stop_ids(trip)
+
+    if origin_stop:
+        stop_ids.add(origin_stop.id)
+    if destination_stop:
+        stop_ids.add(destination_stop.id)
+
+    return trip.stops.filter(id__in=stop_ids).select_related("location").order_by("order")
+
+
+def get_confirmed_seats_count(trip: Trip) -> int:
+    total = Booking.objects.filter(
+        trip=trip, status=Booking.Status.CONFIRMED
+    ).aggregate(total=Sum("seats_requested"))["total"]
+    return total or 0
+
+
+def get_available_seats(trip: Trip) -> int:
+    return trip.available_spots - get_confirmed_seats_count(trip)
