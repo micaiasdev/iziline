@@ -4,7 +4,7 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Sum, QuerySet
 from django.utils import timezone
 
-from ..models import Trip, TripStop, Booking, City, Location
+from trip.models import Trip, TripStop, Booking, City, Location
 
 
 # ---------------------------------------------------------------------------
