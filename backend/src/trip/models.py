@@ -61,7 +61,9 @@ class TripStop(models.Model):
 	location = models.ForeignKey('trip.Location', on_delete=models.SET_NULL, null=True)
 	order = models.IntegerField(
 	)
-
+	class Meta:
+		unique_together = ['trip', 'location']
+		
 
 class Booking(models.Model):
   
