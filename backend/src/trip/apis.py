@@ -11,7 +11,7 @@ from trip.serializers import (
     TripListFilterSerializer,
     TripListSerializer,
 )
-from trip.services import trip_cancel, trip_create
+from trip.services.trip import trip_cancel, trip_create
 
 
 class TripPagination(PageNumberPagination):
