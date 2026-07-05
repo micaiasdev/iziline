@@ -1,171 +1,251 @@
 """
-selectors.py
+services.py
 
-Funções de LEITURA sobre o domínio de viagens. Nenhuma função aqui grava
-nada no banco — só monta queries e devolve dados.
+Funções de ESCRITA sobre o domínio de viagens — toda regra de negócio que
+grava algo no banco mora aqui.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from django.core.exceptions import PermissionDenied
-from django.db.models import Sum, QuerySet
+from django.db import transaction
 from django.utils import timezone
 
-from ..models import Trip, TripStop, Booking, City, Location
+from trip.models import Trip, TripStop, Booking, ProfileDriver, Location
+from trip import selectors
+from trip.services.routing import get_routing_client, RoutingError
+
+
+class TripServiceError(Exception):
+    """Erro de regra de negócio (não de infraestrutura)."""
+
+
+@dataclass
+class StopInput:
+    location_id: int
+    order: int
+
+def recalculate_route(trip: Trip) -> Trip:
+    route_stops = list(selectors.get_route_stops(trip))
+    if len(route_stops) < 2:
+        raise TripServiceError("A viagem precisa de pelo menos origem e destino pra calcular rota.")
+
+    coordinates = [(stop.location.longitude, stop.location.latitude) for stop in route_stops]
+
+    client = get_routing_client()
+    try:
+        route = client.get_route(coordinates)
+    except RoutingError as exc:
+        raise TripServiceError(f"Não foi possível calcular a rota: {exc}") from exc
+
+    trip.line_trip = route.geometry
+    trip.total_distance_km = route.distance_km
+    trip.total_duration_min = route.duration_min
+    trip.save(update_fields=["line_trip", "total_distance_km", "total_duration_min", "updated_at"])
+    return trip
 
 
 # ---------------------------------------------------------------------------
-# 1. Busca de viagens disponíveis
+# Criar viagem
 # ---------------------------------------------------------------------------
 
-def get_trips_opened(
+@transaction.atomic
+def create_trip(
+    *,
+    driver: ProfileDriver,
     origin_city_id: int,
     destine_city_id: int,
-    date_start=None,
-    date_end=None,
-) -> QuerySet[Trip]:
+    departure_time,
+    available_spots: int,
+    origin_location_id: int,
+    destination_location_id: int,
+    intermediate_location_ids: list[int] | None = None,
+) -> Trip:
     """
-    Versão "burra": compara só Trip.origin_city / Trip.destine_city.
-
-    TODO (futuro): considerar TripStop -> Location -> City também, pra
-    achar viagens onde a cidade buscada aparece como parada intermediária,
-    não só como origem/destino "oficial" da trip. Quando isso for feito,
-    provavelmente vale indexar (ou desnormalizar) a relação
-    TripStop.location.city pra não precisar de um JOIN pesado a cada busca.
-
-    date_start/date_end são opcionais:
-    - nenhum dos dois: todas as trips OPEN a partir de agora
-    - só date_start: trips OPEN a partir dessa data
-    - os dois: trips OPEN dentro do intervalo [date_start, date_end]
+    origin_location_id / destination_location_id: os pontos fixos que o
+    motorista sempre vai passar (viram TripStop de order 0 e order N).
+    intermediate_location_ids: locations extras oferecidas como possíveis
+    paradas — na ordem em que o motorista pretende passar por elas.
     """
-    qs = Trip.objects.filter(
-        status=Trip.Status.OPEN,
+    if available_spots <= 0:
+        raise TripServiceError("A viagem precisa ter pelo menos 1 vaga disponível.")
+
+    if departure_time <= timezone.now():
+        raise TripServiceError("A data/hora de partida precisa estar no futuro.")
+
+    intermediate_location_ids = intermediate_location_ids or []
+
+    origin_location = Location.objects.get(pk=origin_location_id)
+    if origin_location.city_id != origin_city_id:
+        raise TripServiceError("A location de origem não pertence à cidade de origem informada.")
+
+    destination_location = Location.objects.get(pk=destination_location_id)
+    if destination_location.city_id != destine_city_id:
+        raise TripServiceError("A location de destino não pertence à cidade de destino informada.")
+
+    trip = Trip.objects.create(
+        driver=driver,
         origin_city_id=origin_city_id,
         destine_city_id=destine_city_id,
+        departure_time=departure_time,
+        available_spots=available_spots,
     )
 
-    if date_start and date_end:
-        qs = qs.filter(departure_time__range=(date_start, date_end))
-    elif date_start:
-        qs = qs.filter(departure_time__gte=date_start)
-    else:
-        qs = qs.filter(departure_time__gte=timezone.now())
+    ordered_location_ids = [origin_location_id, *intermediate_location_ids, destination_location_id]
+    TripStop.objects.bulk_create([
+        TripStop(trip=trip, location_id=location_id, order=index)
+        for index, location_id in enumerate(ordered_location_ids)
+    ])
 
-    return qs.select_related("origin_city", "destine_city", "driver").order_by("departure_time")
+    recalculate_route(trip)
+    return trip
 
 
 # ---------------------------------------------------------------------------
-# 3. Requests de booking de uma trip (visão do motorista)
+# Criar / cancelar request de booking
 # ---------------------------------------------------------------------------
 
-def get_trip_booking_requests(
-    driver_profile_id: int,
+@transaction.atomic
+def create_booking_request(
+    *,
+    passenger,
     trip_id: int,
-    status: str | None = Booking.Status.PENDING,
-) -> QuerySet[Booking]:
-    """
-    Busca a trip garantindo que pertence a esse driver, depois lista os
-    booking requests dela. Por padrão só mostra PENDING (que é o caso de
-    uso: o motorista decidindo o que aceitar) — passe status=None pra ver
-    todos, independente do status.
-    """
-    try:
-        trip = Trip.objects.get(pk=trip_id, driver_id=driver_profile_id)
-    except Trip.DoesNotExist:
-        raise PermissionDenied("Essa viagem não existe ou não pertence a este motorista.")
+    pickup_stop_id: int,
+    dropoff_stop_id: int,
+    seats_requested: int = 1,
+) -> Booking:
+    trip = Trip.objects.select_for_update().get(pk=trip_id)
 
-    qs = trip.bookings.select_related(
-        "passenger", "pickup_stop__location", "dropoff_stop__location"
-    )
-    if status is not None:
-        qs = qs.filter(status=status)
+    if trip.status != Trip.Status.OPEN:
+        raise TripServiceError("Esta viagem não está mais aceitando passageiros.")
 
-    return qs.order_by("created_at")
+    pickup_stop = TripStop.objects.get(pk=pickup_stop_id, trip=trip)
+    dropoff_stop = TripStop.objects.get(pk=dropoff_stop_id, trip=trip)
 
+    if pickup_stop.order >= dropoff_stop.order:
+        raise TripServiceError("O ponto de embarque precisa vir antes do ponto de desembarque.")
 
-# ---------------------------------------------------------------------------
-# 6. Locations de uma city
-# ---------------------------------------------------------------------------
+    available = selectors.get_available_seats(trip)
+    if seats_requested > available:
+        raise TripServiceError(f"Só há {available} vaga(s) disponível(is) nesta viagem.")
 
-def get_locations_of_city(city_id: int) -> QuerySet[Location]:
-    return Location.objects.filter(city_id=city_id).order_by("name")
-
-
-# ---------------------------------------------------------------------------
-# 7. Busca de cities por nome (case/acento-insensitive)
-# ---------------------------------------------------------------------------
-
-def search_cities_by_name(query: str) -> list[dict]:
-    """
-    Busca por nome usando `icontains` nativo do Django — já é
-    case-insensitive por padrão (ex: "teresina" encontra "Teresina").
-    Não ignora acentuação (MVP: exige o acento correto).
-
-    Retorna já no formato pronto pro front: [{"id": 1, "label": "Teresina-PI"}, ...]
-    """
-    cities = City.objects.filter(name__icontains=query).order_by("name")
-
-    return [
-        {"id": city.id, "label": f"{city.name}-{city.state}"}
-        for city in cities
-    ]
-
-
-# ---------------------------------------------------------------------------
-# 10. Bookings de um passageiro
-# ---------------------------------------------------------------------------
-
-def get_passenger_bookings(passenger_id: int) -> QuerySet[Booking]:
-    """Pro passageiro acompanhar o status de cada reserva que ele fez."""
-    return (
-        Booking.objects.filter(passenger_id=passenger_id)
-        .select_related("trip", "trip__origin_city", "trip__destine_city", "pickup_stop", "dropoff_stop")
-        .order_by("-created_at")
+    return Booking.objects.create(
+        trip=trip,
+        passenger=passenger,
+        pickup_stop=pickup_stop,
+        dropoff_stop=dropoff_stop,
+        seats_requested=seats_requested,
+        status=Booking.Status.PENDING,
     )
 
 
+@transaction.atomic
+def cancel_booking_request(*, booking_id: int, passenger) -> Booking:
+    """
+    Só é possível cancelar requests PENDING. Depois de aceita (CONFIRMED),
+    cancelamento fica pra uma feature futura.
+    """
+    booking = Booking.objects.select_for_update().get(pk=booking_id)
+
+    if booking.passenger_id != passenger.id:
+        raise PermissionDenied("Esse booking não pertence a este passageiro.")
+
+    if booking.status != Booking.Status.PENDING:
+        raise TripServiceError(
+            "Só é possível cancelar requests que ainda não foram aceitas pelo motorista."
+        )
+
+    booking.status = Booking.Status.CANCELLED
+    booking.save(update_fields=["status"])
+    return booking
+
+
 # ---------------------------------------------------------------------------
-# Selectors de apoio (usados internamente pelos services)
+# Aceitar request de booking
 # ---------------------------------------------------------------------------
 
-def get_trip_stops(trip: Trip) -> QuerySet[TripStop]:
-    return trip.stops.select_related("location", "location__city").order_by("order")
+@transaction.atomic
+def accept_booking_request(*, booking_id: int, driver_profile_id: int) -> Booking:
+    booking = Booking.objects.select_for_update().select_related("trip").get(pk=booking_id)
+    trip = Trip.objects.select_for_update().get(pk=booking.trip_id)
+
+    if trip.driver_id != driver_profile_id:
+        raise PermissionDenied("Essa viagem não pertence a este motorista.")
+
+    if booking.status != Booking.Status.PENDING:
+        raise TripServiceError("Só é possível aceitar requests pendentes.")
+
+    available = selectors.get_available_seats(trip)
+    if booking.seats_requested > available:
+        raise TripServiceError("Não há mais vagas suficientes pra aceitar este request.")
+
+    booking.status = Booking.Status.CONFIRMED
+    booking.confirmed_at = timezone.now()
+    booking.save(update_fields=["status", "confirmed_at"])
+
+    recalculate_route(trip)  # a parada confirmada agora entra na geometria
+
+    if selectors.get_available_seats(trip) == 0:
+        trip.status = Trip.Status.FULL
+        trip.save(update_fields=["status", "updated_at"])
+
+    return booking
 
 
-def get_endpoint_stops(trip: Trip) -> tuple[TripStop | None, TripStop | None]:
-    """(stop_de_origem, stop_de_destino) — os dois extremos (menor/maior order)."""
-    stops = list(get_trip_stops(trip))
-    if not stops:
-        return None, None
-    return stops[0], stops[-1]
+# ---------------------------------------------------------------------------
+# Reordenar paradas
+# ---------------------------------------------------------------------------
+
+@transaction.atomic
+def update_order(
+    *,
+    trip_id: int,
+    driver_profile_id: int,
+    stop_orders: list[tuple[int, int]],  # [(trip_stop_id, novo_order), ...]
+) -> None:
+    """
+    Só atualiza o campo `order` dos TripStops — não recalcula o mapa.
+    Pra ver/persistir o novo traçado depois de reordenar, chame
+    new_map_order() em seguida.
+
+    ASSUNÇÃO ATUAL (MVP): confiamos que o frontend sempre manda uma
+    sequência de `order` válida (crescente, sem buracos). Ainda não
+    validamos isso aqui.
+    TODO: validar que os valores de `order` formam uma sequência
+    contígua começando em 0 (0, 1, 2, ...), sem pular números.
+    """
+    trip = Trip.objects.get(pk=trip_id, driver_id=driver_profile_id)
+
+    stops_by_id = {stop.id: stop for stop in trip.stops.all()}
+    new_orders = [order for _, order in stop_orders]
+
+    if len(new_orders) != len(set(new_orders)):
+        raise TripServiceError("Cada stop precisa de um `order` único.")
+
+    if set(stops_by_id.keys()) != {stop_id for stop_id, _ in stop_orders}:
+        raise TripServiceError("A lista precisa incluir todos os stops da viagem, e só eles.")
+
+    updated_stops = []
+    for stop_id, new_order in stop_orders:
+        stop = stops_by_id[stop_id]
+        stop.order = new_order
+        updated_stops.append(stop)
+
+    TripStop.objects.bulk_update(updated_stops, ["order"])
 
 
-def get_confirmed_stop_ids(trip: Trip) -> set[int]:
-    confirmed = Booking.objects.filter(trip=trip, status=Booking.Status.CONFIRMED)
-    pickup_ids = confirmed.values_list("pickup_stop_id", flat=True)
-    dropoff_ids = confirmed.values_list("dropoff_stop_id", flat=True)
-    return set(pickup_ids) | set(dropoff_ids)
+# ---------------------------------------------------------------------------
+# Recalcular/exibir o mapa após reordenar
+# ---------------------------------------------------------------------------
 
-
-def get_route_stops(trip: Trip) -> QuerySet[TripStop]:
-    """Stops que devem estar na geometria agora: extremos + intermediários com booking confirmado."""
-    origin_stop, destination_stop = get_endpoint_stops(trip)
-    stop_ids = get_confirmed_stop_ids(trip)
-
-    if origin_stop:
-        stop_ids.add(origin_stop.id)
-    if destination_stop:
-        stop_ids.add(destination_stop.id)
-
-    return trip.stops.filter(id__in=stop_ids).select_related("location").order_by("order")
-
-
-def get_confirmed_seats_count(trip: Trip) -> int:
-    total = Booking.objects.filter(
-        trip=trip, status=Booking.Status.CONFIRMED
-    ).aggregate(total=Sum("seats_requested"))["total"]
-    return total or 0
-
-
-def get_available_seats(trip: Trip) -> int:
-    return trip.available_spots - get_confirmed_seats_count(trip)
+def new_map_order(*, trip_id: int, driver_profile_id: int) -> Trip:
+    """
+    Chamado depois de update_order (ou sempre que quiser ver/persistir o
+    traçado atual). É a mesma lógica de recalculate_route, só que exposta
+    aqui como o ponto de entrada específico pra esse fluxo de "motorista
+    reordenou e quer ver o novo mapa".
+    """
+    trip = Trip.objects.get(pk=trip_id, driver_id=driver_profile_id)
+    return recalculate_route(trip)
