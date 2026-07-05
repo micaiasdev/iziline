@@ -11,7 +11,7 @@ from rest_framework.test import APITestCase
 from trip.models import Trip
 from trip.selectors import trip_get, trip_list
 from trip.serializers import TripCreateSerializer, TripDetailSerializer, TripListSerializer
-from trip.services import calculate_fare, trip_cancel, trip_create
+from trip.services.trip import calculate_fare, trip_cancel, trip_create
 
 User = get_user_model()
 

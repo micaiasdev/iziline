@@ -80,4 +80,3 @@ class Booking(models.Model):
 
 	created_at = models.DateTimeField(auto_now_add=True)
 	confirmed_at = models.DateTimeField(null=True, blank=True)
-
