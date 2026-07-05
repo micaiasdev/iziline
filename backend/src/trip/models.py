@@ -41,6 +41,7 @@ class Trip(models.Model):
 	line_trip = models.JSONField(null=True, blank=True)
 	total_distance_km = models.FloatField(blank=True, null=True)
 	total_duration_min = models.FloatField(blank=True, null=True)
+	departure_time = models.DateTimeField(db_index=True)
 	created_at = models.DateTimeField(auto_now_add=True)
 	updated_at = models.DateTimeField(auto_now=True)
 	
@@ -57,7 +58,7 @@ class Trip(models.Model):
 
 class TripStop(models.Model):
 	trip = models.ForeignKey('trip.Trip', on_delete=models.CASCADE)
-	location = models.ForeignKey('trip.Location', on_delete=models.SET_NULL)
+	location = models.ForeignKey('trip.Location', on_delete=models.SET_NULL, null=True)
 	order = models.IntegerField(
 	)
 
