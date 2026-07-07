@@ -106,13 +106,17 @@ def future_departure_time():
 
 @pytest.fixture
 def driver_profile(db, django_user_model):
-    user = django_user_model.objects.create_user(username="driver", password="x")
+    user = django_user_model.objects.create_user(
+        email="driver@example.com", password="x", full_name="Driver", cpf="11111111111"
+    )
     return ProfileDriver.objects.create(user=user)
 
 
 @pytest.fixture
 def passenger_user(db, django_user_model):
-    return django_user_model.objects.create_user(username="passenger", password="x")
+    return django_user_model.objects.create_user(
+        email="passenger@example.com", password="x", full_name="Passenger", cpf="22222222222"
+    )
 
 
 @pytest.fixture
