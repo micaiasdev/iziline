@@ -29,9 +29,13 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework_simplejwt',
+    'users',
     'trip',
     'chat'
 ]
+
+AUTH_USER_MODEL = 'users.User'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -113,14 +117,11 @@ STATIC_URL = 'static/'
 # Django REST Framework
 # https://www.django-rest-framework.org/api-guide/settings/
 REST_FRAMEWORK = {
-    # BasicAuthentication vem primeiro para que requisições sem credenciais
-    # retornem 401 (e não 403): seu authenticate_header() envia o cabeçalho
-    # WWW-Authenticate.
-    # ATENÇÃO: BasicAuthentication trafega credenciais em Base64; só é seguro
-    # sobre HTTPS. Antes de qualquer deploy fora de dev, substituir por JWT
-    # (Simple JWT) — que também retorna 401 nativamente — e remover esta classe.
+    # Autenticação por JWT (Simple JWT): retorna 401 nativamente para
+    # requisições sem credenciais válidas. SessionAuthentication fica mantida
+    # apenas para o admin/DRF browsable API em desenvolvimento.
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.BasicAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
@@ -131,4 +132,13 @@ REST_FRAMEWORK = {
     # a elas e só seria herdado por futuras GenericAPIView.
 
     "EXCEPTION_HANDLER": "core.exceptions.exception_handler",
+}
+
+# Simple JWT
+# https://django-rest-framework-simplejwt.readthedocs.io/
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
 }
