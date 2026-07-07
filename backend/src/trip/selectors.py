@@ -105,8 +105,7 @@ def search_cities_by_name(query: str) -> list[dict]:
     cities = City.objects.filter(name__icontains=query).order_by("name")
 
     return [
-        {"id": city.id, "label": f"{city.name}-{city.state}"}
-        for city in cities
+        {"id": city.id, "label": f"{city.name}-{city.state}"} for city in cities
     ]
 
 

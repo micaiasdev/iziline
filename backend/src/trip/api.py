@@ -103,6 +103,14 @@ class BookingOutputSerializer(serializers.ModelSerializer):
     ]
 
 
+class TripRouteOutputSerializer(serializers.ModelSerializer):
+  class Meta:
+    model = Trip
+    fields = [
+      "id", "line_trip", "total_distance_km", "total_duration_min",
+      "status", "updated_at",
+    ]
+ 
 # ---------------------------------------------------------------------------
 # Busca de viagens (passageiro)
 # ---------------------------------------------------------------------------
@@ -171,14 +179,21 @@ class TripDetailApi(APIView):
         return Response(self.OutputSerializer(trip).data)
 
 
+class TripRouteApi(APIView):
+    permission_classes = [AllowAny]
+    OutputSerializer = TripRouteOutputSerializer
+ 
+    def get(self, request, trip_id: int):
+        trip = selectors.get_trip(trip_id)
+        return Response(self.OutputSerializer(trip).data)
+
 class StopOrderInputSerializer(serializers.Serializer):
     stop_id = serializers.IntegerField()
     order = serializers.IntegerField()
 
-
 class TripReorderStopsApi(APIView):
     permission_classes = [AllowAny]
-
+    
     class InputSerializer(serializers.Serializer):
         stop_orders = StopOrderInputSerializer(many=True)
 
@@ -202,6 +217,10 @@ class TripRecalculateRouteApi(APIView):
         trip = new_map_order(trip_id=trip_id, driver_profile_id=driver.id)
         return Response(self.OutputSerializer(trip).data)
 
+
+# ==================
+# BOOKING PHASES
+# ==================
 
 # ---------------------------------------------------------------------------
 # Booking request (passageiro)
