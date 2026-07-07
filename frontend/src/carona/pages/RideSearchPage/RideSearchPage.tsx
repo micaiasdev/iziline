@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { FormField } from "../../../components/FormField/FormField";
 import { searchRides } from "../../service/rideService";
+import { createBooking } from "../../service/bookingService";
+import { ApiError } from "../../../travel/service/apiError";
 import type { RideSearchFilters, RideSearchResult } from "../../../types/ride";
 import "./RideSearchPage.css";
 
@@ -154,7 +156,29 @@ export function RideSearchPage() {
   );
 }
 
+type BookingStatus = "idle" | "loading" | "booked" | "error";
+
 function RideResultCard({ ride }: { ride: RideSearchResult }) {
+  const [bookingStatus, setBookingStatus] = useState<BookingStatus>("idle");
+  const [bookingError, setBookingError] = useState("");
+
+  async function handleReserve() {
+    setBookingStatus("loading");
+    setBookingError("");
+
+    try {
+      await createBooking(ride.id);
+      setBookingStatus("booked");
+    } catch (error) {
+      setBookingStatus("error");
+      setBookingError(
+        error instanceof ApiError
+          ? error.message
+          : "Não foi possível reservar essa carona. Tente novamente."
+      );
+    }
+  }
+
   return (
     <article className="ride-card">
       <div className="ride-card__driver">
@@ -189,6 +213,29 @@ function RideResultCard({ ride }: { ride: RideSearchResult }) {
           <span>Preço</span>
           <strong>{formatPrice(ride.price)}</strong>
         </div>
+      </div>
+
+      <div className="ride-card__actions">
+        <button
+          type="button"
+          className={
+            bookingStatus === "booked"
+              ? "ride-button ride-button--booked"
+              : "ride-button ride-button--primary"
+          }
+          onClick={handleReserve}
+          disabled={bookingStatus === "loading" || bookingStatus === "booked"}
+        >
+          {bookingStatus === "loading" && "Reservando..."}
+          {bookingStatus === "booked" && "Reservado"}
+          {(bookingStatus === "idle" || bookingStatus === "error") && "Reservar"}
+        </button>
+
+        {bookingStatus === "error" && (
+          <span className="ride-card__booking-error" role="alert">
+            {bookingError}
+          </span>
+        )}
       </div>
     </article>
   );
