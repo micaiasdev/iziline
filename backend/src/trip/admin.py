@@ -48,7 +48,6 @@ class LocationAdmin(ModelAdmin):
 
 # ---------------------------------------------------------------------------
 # Resto dos models — registro simples, útil pra inspecionar dados
-# enquanto o frontend não está pronto
 # ---------------------------------------------------------------------------
 
 @admin.register(ProfileDriver)
