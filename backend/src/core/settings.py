@@ -1,9 +1,6 @@
 
-from decouple import config
+import environ
 from pathlib import Path
-
-MAPBOX_ACCESS_TOKEN = config("MAPBOX_ACCESS_TOKEN")
-ROUTING_PROVIDER = config("ROUTING_PROVIDER", default="mapbox")
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent

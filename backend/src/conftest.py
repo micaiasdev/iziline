@@ -1,112 +1,101 @@
 """
-trip/tests/conftest.py
-
-Fixtures compartilhadas. A mais importante é `fake_routing_client`
-(autouse=True): ela troca o MapboxRoutingClient real por um fake em
-TODOS os testes automaticamente, sem precisar de MAPBOX_ACCESS_TOKEN
-nem conexão com a internet.
+Uso:
+    pytest                      # roda tudo, MENOS os marcados integration
+    pytest --run-integration    # roda tudo, incluindo os de integração
+    pytest -m integration --run-integration   # roda SÓ os de integração
 """
 
 from datetime import timedelta
 
 import pytest
-from django.contrib.auth import get_user_model
 from django.utils import timezone
 
-from trip.models import ProfileDriver, City, Location
+from trip.models import City, Location, ProfileDriver
 from trip.services import trip as trip_services
 from trip.services.routing import RouteResult
 
 
 class FakeRoutingClient:
-    """
-    Substitui o MapboxRoutingClient nos testes. Nunca faz chamada de rede;
-    devolve sempre um resultado fixo e determinístico, o suficiente pra
-    testar a lógica de negócio (não a integração real com o Mapbox).
-    """
-
     def get_route(self, coordinates):
         return RouteResult(
             distance_km=42.0,
             duration_min=60.0,
-            geometry={"type": "LineString", "coordinates": coordinates},
+            geometry={
+                "type": "LineString",
+                "coordinates": [[lng, lat] for lng, lat in coordinates],
+            },
         )
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--run-integration",
+        action="store_true",
+        default=False,
+        help="Roda também os testes marcados @pytest.mark.integration (fazem chamada de rede real).",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--run-integration"):
+        return  # flag presente: não pula nada, roda tudo normalmente
+
+    skip_integration = pytest.mark.skip(
+        reason="Teste de integração (rede real) — rode com --run-integration pra incluí-lo."
+    )
+    for item in items:
+        if "integration" in item.keywords:
+            item.add_marker(skip_integration)
+
+
 @pytest.fixture(autouse=True)
-def fake_routing_client(monkeypatch):
-    """
-    autouse=True: aplica em TODO teste, sem precisar declarar o fixture
-    explicitamente em cada função de teste. Isso garante que nenhum teste
-    bate na API real do Mapbox por acidente.
-    """
+def fake_routing_client_for_unit_tests(request, monkeypatch):
+    if request.node.get_closest_marker("integration"):
+        return
+
     monkeypatch.setattr(trip_services, "get_routing_client", lambda: FakeRoutingClient())
 
 
-# ---------------------------------------------------------------------------
-# Usuários / perfis
-# ---------------------------------------------------------------------------
-
-@pytest.fixture
-def passenger_user(db):
-    return get_user_model().objects.create_user(username="passageiro1", password="x")
-
-
-@pytest.fixture
-def driver_user(db):
-    return get_user_model().objects.create_user(username="motorista1", password="x")
-
-
-@pytest.fixture
-def driver_profile(driver_user):
-    return ProfileDriver.objects.create(user=driver_user)
-
-
-# ---------------------------------------------------------------------------
-# City / Location
-# ---------------------------------------------------------------------------
-
 @pytest.fixture
 def city_origin(db):
-    return City.objects.create(name="Teresina", state="PI", mapbox_place_id="place.teresina")
+    return City.objects.create(name="Teresina", state="PI", mapbox_place_id="city-origin")
 
 
 @pytest.fixture
 def city_destination(db):
-    return City.objects.create(name="Fortaleza", state="CE", mapbox_place_id="place.fortaleza")
+    return City.objects.create(name="Timon", state="MA", mapbox_place_id="city-destination")
 
 
 @pytest.fixture
-def origin_location(city_origin):
+def origin_location(db, city_origin):
     return Location.objects.create(
-        name="Rodoviária de Teresina",
-        formatted_address="Av. Presidente Getúlio Vargas, Teresina - PI",
+        name="Origem",
+        formatted_address="Rua da Origem, 1",
         city=city_origin,
         latitude=-5.089,
-        longitude=-42.801,
+        longitude=-42.802,
     )
 
 
 @pytest.fixture
-def destination_location(city_destination):
+def destination_location(db, city_destination):
     return Location.objects.create(
-        name="Rodoviária de Fortaleza",
-        formatted_address="Av. Borges de Melo, Fortaleza - CE",
+        name="Destino",
+        formatted_address="Rua do Destino, 2",
         city=city_destination,
-        latitude=-3.717,
-        longitude=-38.543,
+        latitude=-5.095,
+        longitude=-42.837,
     )
 
 
 @pytest.fixture
 def intermediate_location(db, city_origin):
-    """Uma parada intermediária qualquer, na mesma cidade de origem pra simplificar."""
     return Location.objects.create(
-        name="Posto BR-343 km 12",
-        formatted_address="BR-343, km 12",
+        name="Intermediária",
+        formatted_address="Av. Intermediária, 3",
         city=city_origin,
-        latitude=-5.200,
-        longitude=-42.700,
+        latitude=-5.1,
+        longitude=-42.75,
     )
 
 
@@ -115,12 +104,27 @@ def future_departure_time():
     return timezone.now() + timedelta(days=1)
 
 
-# ---------------------------------------------------------------------------
-# Trip já criada — pra testes que precisam de uma trip pronta (bookings etc.)
-# ---------------------------------------------------------------------------
+@pytest.fixture
+def driver_profile(db, django_user_model):
+    user = django_user_model.objects.create_user(username="driver", password="x")
+    return ProfileDriver.objects.create(user=user)
+
 
 @pytest.fixture
-def open_trip(driver_profile, city_origin, city_destination, origin_location, destination_location, future_departure_time):
+def passenger_user(db, django_user_model):
+    return django_user_model.objects.create_user(username="passenger", password="x")
+
+
+@pytest.fixture
+def open_trip(
+    db,
+    driver_profile,
+    city_origin,
+    city_destination,
+    origin_location,
+    destination_location,
+    future_departure_time,
+):
     return trip_services.create_trip(
         driver=driver_profile,
         origin_city_id=city_origin.id,
@@ -130,3 +134,4 @@ def open_trip(driver_profile, city_origin, city_destination, origin_location, de
         origin_location_id=origin_location.id,
         destination_location_id=destination_location.id,
     )
+ 
