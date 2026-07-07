@@ -1,10 +1,3 @@
-"""
-services/trip.py
-
-Funções de ESCRITA sobre o domínio de viagens — toda regra de negócio que
-grava algo no banco mora aqui.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
