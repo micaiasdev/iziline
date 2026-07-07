@@ -8,9 +8,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env()
 environ.Env.read_env(BASE_DIR / ".env")
 
-# SECURITY WARNING: keep the secret key used in production secret!
 
-SECRET_KEY = env("SECRET_KEY")
+SECRET_KEY = env("SECRET_KEY", default='secret-key-insegura-23i2o12i3o3oj21')
 DEBUG = env.bool("DEBUG", default=False)
 
 MAPBOX_ACCESS_TOKEN = env("MAPBOX_ACCESS_TOKEN")
