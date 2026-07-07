@@ -9,8 +9,11 @@ https://docs.djangoproject.com/en/6.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
-
+from decouple import config
 from pathlib import Path
+
+MAPBOX_ACCESS_TOKEN = config("MAPBOX_ACCESS_TOKEN")
+ROUTING_PROVIDER = config("ROUTING_PROVIDER", default="mapbox")
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -138,4 +141,6 @@ REST_FRAMEWORK = {
     # Paginação é configurada por-view (TripPagination em trip/apis.py), pois as
     # views são APIView puras — um DEFAULT_PAGINATION_CLASS global não se aplica
     # a elas e só seria herdado por futuras GenericAPIView.
+
+    "EXCEPTION_HANDLER": "core.exceptions.exception_handler",
 }
