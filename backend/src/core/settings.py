@@ -1,7 +1,14 @@
-
-import environ
 from pathlib import Path
+import environ
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+env = environ.Env()
+environ.Env.read_env(BASE_DIR / ".env")
+
+SECRET_KEY = env("SECRET_KEY")
+MAPBOX_ACCESS_TOKEN = env("MAPBOX_ACCESS_TOKEN")
+ROUTING_PROVIDER = env("ROUTING_PROVIDER", default="mapbox")
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
