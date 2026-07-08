@@ -1,50 +1,46 @@
 :root {
-  --text: #475569;
-  --text-h: #0f172a;
-  --muted: #94a3b8;
-  --bg: #f8fafc;
+  /* Paleta "A Estrada Tranquila" (DESIGN.md) — teal como única voz de marca. */
+  --teal: #4f8f8c;
+  --teal-deep: #3f7774;
+  --teal-wash: #e7f1f0;
+  --ink: #263647;
+  --muted: #667678;
+  --page: #f5f8f7;
   --surface: #ffffff;
-  --field-bg: #ffffff;
-  --border: #dbe3ef;
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-ring: rgba(37, 99, 235, 0.18);
+  --border: #d7e1e0;
+  --danger: #b42318;
   --success: #0f766e;
-  --success-bg: #ecfdf5;
-  --success-border: #99f6e4;
-  --shadow: rgba(15, 23, 42, 0.1) 0 24px 64px;
+  --success-wash: #eafaf4;
+
+  /* Anel de foco padrão. */
+  --focus-ring: 0 0 0 3px rgba(79, 143, 140, 0.18);
+  --focus-outline: 3px solid rgba(79, 143, 140, 0.28);
+
+  /* Escala de z-index semântica (evita valores mágicos). */
+  --z-sticky: 100;
+  --z-fixed: 200;
+  --z-dropdown: 300;
+  --z-modal-backdrop: 400;
+  --z-modal: 410;
+  --z-toast: 500;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
 
-  font: 16px/145% var(--sans);
+  font: 16px/1.45 var(--sans);
   letter-spacing: 0;
-  color: var(--text);
-  background: var(--bg);
+  color: var(--ink);
+  background: var(--page);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #cbd5e1;
-    --text-h: #f8fafc;
-    --muted: #64748b;
-    --bg: #0f172a;
-    --surface: #111c31;
-    --field-bg: #0b1220;
-    --border: #263244;
-    --accent: #60a5fa;
-    --accent-hover: #3b82f6;
-    --accent-ring: rgba(96, 165, 250, 0.22);
-    --success: #5eead4;
-    --success-bg: rgba(20, 184, 166, 0.12);
-    --success-border: rgba(94, 234, 212, 0.28);
-    --shadow: rgba(0, 0, 0, 0.42) 0 24px 64px;
-  }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 #root {
@@ -57,9 +53,9 @@ body {
 
 h1 {
   font-family: var(--heading);
-  font-size: 32px;
+  font-size: 2rem;
   line-height: 1.15;
-  font-weight: 750;
-  color: var(--text-h);
+  font-weight: 700;
+  color: var(--ink);
   letter-spacing: 0;
 }

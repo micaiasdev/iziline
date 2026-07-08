@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { cancelTrip, getUserAgenda } from "../../service/agendaService";
-import { ApiError } from "../../../travel/service/apiError";
+import { ApiError } from "../../../app/services/apiError";
 import { ConfirmModal } from "../../../components/ConfirmModal/ConfirmModal";
 import type { AgendaTrip, AgendaWhen } from "../../../types/agenda";
 import "./MyTripsPage.css";

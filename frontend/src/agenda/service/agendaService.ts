@@ -1,6 +1,6 @@
 import type { AgendaTrip, AgendaWhen, PaginatedResponse } from "../../types/agenda";
-import { apiClient } from "../../travel/service/apiClient";
-import { buildApiError } from "../../travel/service/apiError";
+import { apiClient } from "../../app/services/apiClient";
+import { buildApiError } from "../../app/services/apiError";
 
 export async function getUserAgenda(when: AgendaWhen): Promise<AgendaTrip[]> {
   try {
