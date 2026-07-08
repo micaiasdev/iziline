@@ -3,7 +3,7 @@ import { FormField } from "../../../components/FormField/FormField";
 import { CitySearch } from "../../../components/CitySearch/CitySearch";
 import { getCityLocations } from "../../service/cityService";
 import { createTrip } from "../../service/serviceApi";
-import { ApiError } from "../../service/apiError";
+import { ApiError } from "../../../app/services/apiError";
 import type {
   CitySearchResult,
   CreateTripInput,

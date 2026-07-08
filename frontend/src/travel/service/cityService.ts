@@ -1,6 +1,6 @@
 import type { CitySearchResult, Location } from "../../types/trip";
-import { apiClient } from "./apiClient";
-import { buildApiError } from "./apiError";
+import { apiClient } from "../../app/services/apiClient";
+import { buildApiError } from "../../app/services/apiError";
 import { mockCities } from "../mocks/cities.mock";
 import { mockLocationsByCity } from "../mocks/locations.mock";
 

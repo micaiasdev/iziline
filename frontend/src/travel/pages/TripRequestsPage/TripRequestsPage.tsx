@@ -4,7 +4,7 @@ import {
   listBookingRequests,
   rejectRequest,
 } from "../../service/tripRequestsService";
-import { ApiError } from "../../service/apiError";
+import { ApiError } from "../../../app/services/apiError";
 import type { Booking, BookingStatus, TripStop } from "../../../types/trip";
 import "./TripRequestsPage.css";
 

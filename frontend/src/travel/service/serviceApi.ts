@@ -3,8 +3,8 @@ import type {
   CreateTripPayload,
   TripDetail,
 } from "../../types/trip";
-import { apiClient } from "./apiClient";
-import { ApiError, buildApiError } from "./apiError";
+import { apiClient } from "../../app/services/apiClient";
+import { ApiError, buildApiError } from "../../app/services/apiError";
 import { buildCreatedTripMock } from "../mocks/trip.mock";
 
 export { ApiError };

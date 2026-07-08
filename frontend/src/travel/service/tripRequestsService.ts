@@ -1,6 +1,6 @@
 import type { Booking, BookingStatus } from "../../types/trip";
-import { apiClient } from "./apiClient";
-import { buildApiError } from "./apiError";
+import { apiClient } from "../../app/services/apiClient";
+import { buildApiError } from "../../app/services/apiError";
 import {
   getMockBookingRequests,
   updateMockBookingStatus,
