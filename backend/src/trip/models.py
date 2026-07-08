@@ -57,10 +57,12 @@ class Trip(models.Model):
  
 
 class TripStop(models.Model):
-	trip = models.ForeignKey('trip.Trip', on_delete=models.CASCADE)
+	trip = models.ForeignKey('trip.Trip', on_delete=models.CASCADE,
+													related_name='stops')
 	location = models.ForeignKey('trip.Location', on_delete=models.SET_NULL, null=True)
 	order = models.IntegerField(
 	)
+	#avaliar a questão de uma trip stop fixa, 0 ou 1, as fixas seriam a do começo da viagem
 	class Meta:
 		unique_together = ['trip', 'location']
 		
