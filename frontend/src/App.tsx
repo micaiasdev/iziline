@@ -5,8 +5,10 @@ import { PublicOnlyRoute } from './app/auth/PublicOnlyRoute'
 import { LoginPage } from './app/auth/pages/LoginPage/LoginPage'
 import { RegisterPage } from './app/auth/pages/RegisterPage/RegisterPage'
 import { ProfilePage } from './app/auth/pages/ProfilePage/ProfilePage'
+import { SubscriptionPage } from './assinatura/pages/SubscriptionPage/SubscriptionPage'
 import { ReservationChatPage } from './chat/pages/ReservationChatPage/ReservationChatPage'
 import { TripChatPage } from './chat/pages/TripChatPage/TripChatPage'
+import { TripLivePage } from './trip-live/pages/TripLivePage/TripLivePage'
 import { RideSearchPage } from './viagens/passageiro/pages/RideSearchPage/RideSearchPage'
 import { TripDetailPage as PassengerTripDetailPage } from './viagens/passageiro/pages/TripDetailPage/TripDetailPage'
 import { MyTripsPage } from './viagens/passageiro/pages/MyTripsPage/MyTripsPage'
@@ -26,9 +28,10 @@ function App() {
 
       {/* Protegido: exige usuário autenticado. */}
       <Route element={<ProtectedRoute />}>
-        {/* Chat em tela cheia (sem a navegação inferior). */}
+        {/* Chat e viagem em andamento: tela cheia (sem a navegação inferior). */}
         <Route path="chat/reserva/:bookingId" element={<ReservationChatPage />} />
         <Route path="chat/viagem/:tripId" element={<TripChatPage />} />
+        <Route path="viagem/:tripId/andamento" element={<TripLivePage />} />
 
         <Route element={<AppShell />}>
           <Route index element={<Navigate to="/viagens" replace />} />
@@ -40,6 +43,7 @@ function App() {
           <Route path="caronas/:tripId" element={<PassengerTripDetailPage />} />
           <Route path="minhas-viagens" element={<MyTripsPage />} />
           <Route path='perfil' element={<ProfilePage />} />
+          <Route path="assinatura" element={<SubscriptionPage />} />
           <Route path="*" element={<Navigate to="/viagens" replace />} />
         </Route>
       </Route>

@@ -54,6 +54,13 @@ export function buildCreatedTripMock(
       coordinates.length >= 2 ? { type: "LineString", coordinates } : null,
     total_distance_km: distanceKm,
     total_duration_min: Math.round((distanceKm / 80) * 60),
+    cost: {
+      trip_id: nextTripId - 1,
+      price_per_km: "1.00",
+      distance_km_snapshot: distanceKm,
+      total_cost: distanceKm.toFixed(2),
+      created_at: now,
+    },
     stops,
     created_at: now,
     updated_at: now,

@@ -1,0 +1,82 @@
+services:
+  database:
+    image: postgres:17
+    container_name: django_database_prod
+    restart: unless-stopped
+
+    env_file:
+      - ../../src/.env.prod
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    networks:
+      - app_network
+
+
+  backend:
+    build:
+      context: ../../
+      dockerfile: src/Dockerfile
+      target: production
+
+    container_name: django_backend_prod
+
+    restart: unless-stopped
+
+    command: >
+      sh -c "
+      python manage.py collectstatic --noinput &&
+      python manage.py migrate &&
+      gunicorn core.wsgi:application --bind 0.0.0.0:8000
+      "
+
+    env_file:
+      - ../../src/.env.prod
+
+    volumes:
+      - ../../src/.env.prod:/app/.env:ro
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+
+    depends_on:
+      - database
+
+    expose:
+      - "8000"
+
+    networks:
+      - app_network
+
+
+  nginx:
+    image: nginx:alpine
+
+    container_name: nginx_prod
+
+    restart: unless-stopped
+
+    ports:
+      - "80:80"
+
+    volumes:
+      - ../nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_volume:/app/staticfiles:ro
+      - media_volume:/app/media:ro
+
+    depends_on:
+      - backend
+
+    networks:
+      - app_network
+
+
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:
+
+
+networks:
+  app_network:
+    driver: bridge

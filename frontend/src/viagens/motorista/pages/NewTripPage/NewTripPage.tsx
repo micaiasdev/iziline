@@ -27,6 +27,11 @@ const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
   timeStyle: "short",
 });
 
+const currencyFormatter = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+
 type Stage = "form" | "review" | "completed";
 
 type CityPointValue = {
@@ -53,6 +58,11 @@ function formatSpots(value: number) {
 function formatDateTime(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : dateTimeFormatter.format(date);
+}
+
+function formatCurrency(value: string | number | null | undefined) {
+  const amount = Number(value);
+  return Number.isNaN(amount) ? "Indisponível" : currencyFormatter.format(amount);
 }
 
 function cityPointLabel(point: CityPointValue): RoutePoint["cityLabel"] {
@@ -443,6 +453,10 @@ export function NewTripPage() {
               <div>
                 <span>Vagas</span>
                 <strong>{formatSpots(createdTrip.available_spots)}</strong>
+              </div>
+              <div>
+                <span>Custo total</span>
+                <strong>{formatCurrency(createdTrip.cost?.total_cost)}</strong>
               </div>
             </div>
 

@@ -25,6 +25,11 @@ const distanceFormatter = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 1,
 });
 
+const currencyFormatter = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+
 export function RideSearchPage() {
   const navigate = useNavigate();
   const [filters, setFilters] = useState<RideSearchFilters>(initialFilters);
@@ -232,6 +237,10 @@ function RideResultCard({
           <span>Duração</span>
           <strong>{formatDuration(trip.total_duration_min)}</strong>
         </div>
+        <div>
+          <span>Custo total</span>
+          <strong>{formatCurrency(trip.cost?.total_cost)}</strong>
+        </div>
       </div>
     </button>
   );
@@ -278,6 +287,11 @@ function formatDateTime(value: string) {
 
 function formatDistance(value: number) {
   return `${distanceFormatter.format(value)} km`;
+}
+
+function formatCurrency(value: string | number | null | undefined) {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? currencyFormatter.format(amount) : "Indisponível";
 }
 
 function formatDuration(totalMinutes: number) {

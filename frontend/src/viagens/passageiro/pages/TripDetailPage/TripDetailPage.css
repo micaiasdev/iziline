@@ -136,7 +136,7 @@
 }
 
 .passenger-trip-meta {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   padding-top: 14px;
   border-top: 1px solid var(--border);
 }
@@ -208,6 +208,37 @@
 
 .passenger-booking-form__hint {
   margin: 0;
+}
+
+.passenger-fare-box {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #cfe3e1;
+  border-radius: 8px;
+  background: var(--teal-wash);
+  padding: 14px;
+}
+
+.passenger-fare-box span,
+.passenger-fare-box p,
+.passenger-fare-box small {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.passenger-fare-box strong {
+  color: var(--teal-deep);
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+.passenger-fare-box p {
+  margin: 0;
+}
+
+.passenger-fare-box small {
+  color: var(--danger);
 }
 
 .passenger-booking-form__error {

@@ -61,6 +61,7 @@ class TestCreateTrip:
         assert trip.stops.count() == 3
         ordered_locations = list(trip.stops.order_by("order").values_list("location_id", flat=True))
         assert ordered_locations == [origin_location.id, intermediate_location.id, destination_location.id]
+        assert len(trip.route_legs) == 2
 
     def test_rejects_departure_time_in_the_past(
         self, driver_profile, city_origin, city_destination,

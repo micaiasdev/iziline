@@ -1,4 +1,4 @@
-import type { TripDetail } from "../../../types/trip";
+import type { TripDetail, TripFareOverview } from "../../../types/trip";
 import { apiClient } from "../../../app/services/apiClient";
 import { buildApiError } from "../../../app/services/apiError";
 import { listMockDriverTrips, getMockDriverTrip } from "../mocks/driver-trips.mock";
@@ -45,5 +45,32 @@ export async function getTripDetail(tripId: number): Promise<DriverTripSummary> 
     return { ...data, pendingRequestsCount: pendingRequests.length };
   } catch (error) {
     throw buildApiError(error, "Não foi possível carregar os dados da viagem.");
+  }
+}
+
+export async function getTripFareOverview(tripId: number): Promise<TripFareOverview> {
+  if (USE_MOCK) {
+    const trip = getMockDriverTrip(tripId);
+    if (!trip) {
+      throw new Error(`Viagem mock ${tripId} não encontrada.`);
+    }
+    const totalCost = trip.cost?.total_cost ?? trip.total_distance_km.toFixed(2);
+    return {
+      trip_id: trip.id,
+      total_cost: totalCost,
+      covered_amount: "0.00",
+      driver_amount: totalCost,
+      confirmed_passengers: 0,
+      split: [],
+    };
+  }
+
+  try {
+    const { data } = await apiClient.get<TripFareOverview>(
+      `/api/trips/${tripId}/fare-split/`
+    );
+    return data;
+  } catch (error) {
+    throw buildApiError(error, "Não foi possível carregar o rateio da viagem.");
   }
 }

@@ -1,0 +1,326 @@
+/* Viagem em andamento — estilo 99/Uber: mapa em tela cheia, barra flutuante no
+   topo e um "bottom sheet" com o status e as ações. Segue o design do app:
+   teal como voz de ação, superfícies claras, sombra só em elementos flutuantes. */
+
+.trip-live {
+  position: relative;
+  height: 100svh;
+  width: 100%;
+  overflow: hidden;
+  background: var(--page);
+}
+
+.trip-live__map {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+/* Barra superior flutuante (voltar + rótulo da viagem). */
+.trip-live__topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px;
+  pointer-events: none;
+}
+
+.trip-live__back {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(38, 54, 71, 0.14);
+}
+
+.trip-live__back:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+.trip-live__topbar-heading {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  box-shadow: 0 6px 18px rgba(38, 54, 71, 0.12);
+}
+
+.trip-live__badge {
+  flex-shrink: 0;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--teal-wash);
+  color: var(--teal-deep);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.trip-live__route {
+  min-width: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trip-live__error {
+  position: absolute;
+  top: 76px;
+  left: 12px;
+  right: 12px;
+  z-index: 500;
+  background: var(--surface);
+  border: 1px solid rgba(180, 35, 24, 0.35);
+  color: var(--danger);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  box-shadow: 0 6px 18px rgba(38, 54, 71, 0.12);
+}
+
+/* Bottom sheet com o status e ações. */
+.trip-live__sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+  background: var(--surface);
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  box-shadow: 0 -10px 30px rgba(38, 54, 71, 0.16);
+}
+
+.trip-live__grabber {
+  align-self: center;
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border);
+  margin-bottom: 2px;
+}
+
+.trip-live__status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.trip-live__status strong {
+  display: block;
+  font-size: 1.02rem;
+  color: var(--ink);
+}
+
+.trip-live__updated {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.trip-live__pulse-dot {
+  position: relative;
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--teal);
+}
+
+.trip-live__pulse-dot::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 999px;
+  border: 2px solid var(--teal);
+  opacity: 0.5;
+  animation: trip-live-pulse 1.8s ease-out infinite;
+}
+
+.trip-live__hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.trip-live__route-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.92rem;
+  color: var(--ink);
+}
+
+.trip-live__route-line span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trip-live__route-arrow {
+  color: var(--teal-deep);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.trip-live__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.trip-live__chat {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  border-radius: 10px;
+  background: var(--teal-wash);
+  border: 1px solid #cfe3e1;
+  color: var(--teal-deep);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.trip-live__chat:hover {
+  background: #dcebe9;
+}
+
+.trip-live__chat:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+.trip-live__finish {
+  flex: 1;
+  min-height: 48px;
+  border-radius: 10px;
+  background: var(--teal-deep);
+  border: 1px solid var(--teal-deep);
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.18s ease;
+}
+
+.trip-live__finish:hover:not(:disabled) {
+  background: #346361;
+}
+
+.trip-live__finish:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.trip-live__finish:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+.trip-live__finish-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+/* Marcador do motorista (divIcon). */
+.live-car {
+  position: relative;
+}
+
+.live-car__disc {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--teal-deep);
+  border: 3px solid #ffffff;
+  box-shadow: 0 3px 10px rgba(38, 54, 71, 0.35);
+}
+
+.live-car__glyph {
+  transition: transform 0.4s ease;
+}
+
+.live-car__pulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: rgba(79, 143, 140, 0.28);
+  animation: trip-live-pulse 1.8s ease-out infinite;
+}
+
+@keyframes trip-live-pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.6);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.6);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trip-live__pulse-dot::after,
+  .live-car__pulse {
+    animation: none;
+  }
+  .live-car__glyph {
+    transition: none;
+  }
+}
+
+@media (min-width: 640px) {
+  .trip-live__sheet {
+    left: 50%;
+    right: auto;
+    bottom: 16px;
+    width: min(440px, calc(100% - 32px));
+    transform: translateX(-50%);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+  }
+}

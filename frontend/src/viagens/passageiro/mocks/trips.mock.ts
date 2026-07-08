@@ -66,6 +66,7 @@ function createTrip(
     line_trip: lineTrip,
     total_distance_km: distanceKm,
     total_duration_min: Math.max(35, Math.round((distanceKm / 72) * 60)),
+    cost: buildMockCost(id, distanceKm),
     stops,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -174,6 +175,17 @@ export function toTripListItem(trip: TripDetail): TripListItem {
     status: trip.status,
     total_distance_km: trip.total_distance_km,
     total_duration_min: trip.total_duration_min,
+    cost: trip.cost,
+  };
+}
+
+function buildMockCost(tripId: number, distanceKm: number) {
+  return {
+    trip_id: tripId,
+    price_per_km: "1.00",
+    distance_km_snapshot: distanceKm,
+    total_cost: distanceKm.toFixed(2),
+    created_at: new Date().toISOString(),
   };
 }
 

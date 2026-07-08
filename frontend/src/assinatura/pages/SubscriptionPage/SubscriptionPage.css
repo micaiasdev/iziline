@@ -1,0 +1,528 @@
+.subscription-page {
+  box-sizing: border-box;
+  min-height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+  background: var(--page);
+  color: var(--ink);
+  padding: 20px 16px 32px;
+}
+
+.subscription-page *,
+.subscription-page *::before,
+.subscription-page *::after {
+  box-sizing: border-box;
+}
+
+.subscription-shell {
+  display: grid;
+  gap: 18px;
+  width: min(100%, 1080px);
+  margin: 0 auto;
+}
+
+.subscription-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.subscription-header div {
+  display: grid;
+  gap: 6px;
+}
+
+.subscription-header p {
+  color: var(--teal-deep);
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.subscription-header h1 {
+  color: var(--ink);
+  font-size: 1.5rem;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.subscription-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.subscription-status.is-active {
+  border-color: #cfe3e1;
+  background: var(--teal-wash);
+  color: var(--teal-deep);
+}
+
+.subscription-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  gap: 16px;
+  align-items: start;
+}
+
+.subscription-main {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.subscription-panel,
+.subscription-summary {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.subscription-panel {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.subscription-panel__header {
+  display: grid;
+  gap: 4px;
+}
+
+.subscription-panel__header h2,
+.subscription-summary h2,
+.subscription-management h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.subscription-panel__header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.subscription-plan-list,
+.subscription-payment-methods {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.subscription-plan-card,
+.subscription-payment-method {
+  display: grid;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.subscription-plan-card {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  padding: 14px;
+}
+
+.subscription-plan-card:hover,
+.subscription-plan-card.is-selected,
+.subscription-payment-method:hover,
+.subscription-payment-method.is-selected {
+  border-color: rgba(79, 143, 140, 0.5);
+  background: var(--teal-wash);
+}
+
+.subscription-plan-card input,
+.subscription-payment-method input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--teal);
+}
+
+.subscription-plan-card:focus-within,
+.subscription-payment-method:focus-within {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+.subscription-plan-card__copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.subscription-plan-card__copy strong,
+.subscription-payment-method strong,
+.subscription-summary strong,
+.subscription-payment-box strong,
+.subscription-card-preview strong {
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.subscription-plan-card__copy span,
+.subscription-plan-card__price span,
+.subscription-plan-card__price small,
+.subscription-payment-method small,
+.subscription-summary span,
+.subscription-payment-box span,
+.subscription-feedback {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.subscription-plan-card__price {
+  display: grid;
+  gap: 1px;
+  min-width: 112px;
+  text-align: right;
+}
+
+.subscription-plan-card__price strong {
+  color: var(--ink);
+  font-size: 1.1rem;
+  line-height: 1.15;
+}
+
+.subscription-plan-card__price small {
+  display: block;
+  font-size: 0.75rem;
+}
+
+.subscription-primary-action,
+.subscription-management__actions button {
+  min-height: 48px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--teal);
+  color: var(--surface);
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.subscription-primary-action:hover,
+.subscription-management__actions button:hover {
+  background: var(--teal-deep);
+}
+
+.subscription-primary-action:focus-visible,
+.subscription-management__actions button:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+.subscription-payment {
+  display: grid;
+  gap: 14px;
+}
+
+.subscription-payment-methods {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.subscription-payment-method {
+  grid-template-columns: auto auto minmax(0, 1fr);
+  padding: 12px;
+}
+
+.subscription-payment-method svg {
+  color: var(--teal-deep);
+}
+
+.subscription-payment-method span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.subscription-payment-preview {
+  min-width: 0;
+}
+
+.subscription-card-preview,
+.subscription-payment-box {
+  display: grid;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid rgba(79, 143, 140, 0.62);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--focus-ring);
+}
+
+.subscription-card-preview {
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  min-height: 54px;
+  padding: 8px 12px;
+}
+
+.subscription-card-preview__brand {
+  position: relative;
+  display: inline-flex;
+  width: 34px;
+  height: 22px;
+}
+
+.subscription-card-preview__brand span {
+  position: absolute;
+  top: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+}
+
+.subscription-card-preview__brand span:first-child {
+  left: 3px;
+  background: #e6372e;
+}
+
+.subscription-card-preview__brand span:last-child {
+  right: 3px;
+  background: #f3a712;
+  mix-blend-mode: multiply;
+}
+
+.subscription-card-preview strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subscription-card-preview > span:not(.subscription-card-preview__brand) {
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.subscription-card-preview svg {
+  color: var(--teal-deep);
+}
+
+.subscription-payment-box {
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 12px;
+}
+
+.subscription-payment-box svg {
+  color: var(--teal-deep);
+}
+
+.subscription-payment-box div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.subscription-summary {
+  position: sticky;
+  top: 74px;
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.subscription-summary__block {
+  display: grid;
+  gap: 4px;
+}
+
+.subscription-summary__block strong {
+  font-size: 1.2rem;
+}
+
+.subscription-summary__list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.subscription-summary__list div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: flex-start;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.subscription-summary__list dt,
+.subscription-summary__list dd {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.subscription-summary__list dt {
+  color: var(--muted);
+  min-width: 0;
+}
+
+.subscription-summary__list dd {
+  color: var(--ink);
+  font-weight: 600;
+  min-width: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.subscription-management {
+  display: grid;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.subscription-management__title,
+.subscription-management__state {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.subscription-management__title svg,
+.subscription-management__state svg {
+  flex: 0 0 auto;
+  color: var(--teal-deep);
+}
+
+.subscription-management__state span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.subscription-management__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.subscription-management__actions button {
+  min-height: 44px;
+  padding: 0 12px;
+}
+
+.subscription-management__actions button.is-danger {
+  border-color: var(--danger);
+  background: var(--surface);
+  color: var(--danger);
+}
+
+.subscription-management__actions button.is-danger:hover {
+  background: #fdecea;
+}
+
+.subscription-feedback {
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--teal-wash);
+  color: var(--teal-deep);
+  font-weight: 600;
+}
+
+.subscription-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .subscription-page {
+    padding: 32px 24px;
+  }
+}
+
+@media (max-width: 880px) {
+  .subscription-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .subscription-summary {
+    position: static;
+  }
+}
+
+@media (max-width: 680px) {
+  .subscription-header {
+    display: grid;
+  }
+
+  .subscription-payment-methods {
+    grid-template-columns: 1fr;
+  }
+
+  .subscription-plan-card,
+  .subscription-card-preview {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .subscription-plan-card__price,
+  .subscription-card-preview > span:not(.subscription-card-preview__brand),
+  .subscription-card-preview svg {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .subscription-management__actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 460px) {
+  .subscription-page {
+    padding: 18px 14px;
+  }
+
+  .subscription-panel,
+  .subscription-summary {
+    padding: 16px;
+  }
+
+  .subscription-summary__list div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .subscription-summary__list dd {
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .subscription-plan-card,
+  .subscription-payment-method,
+  .subscription-primary-action,
+  .subscription-management__actions button {
+    transition: none;
+  }
+}

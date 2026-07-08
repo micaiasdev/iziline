@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   getTripDetail,
+  getTripFareOverview,
   type DriverTripSummary,
 } from "../../service/driverTripsService";
 import { TripRouteList } from "../../../../components/TripRoute/TripRoute";
 import { tripStopsToRoutePoints } from "../../../../components/TripRoute/tripRoutePoints";
-import type { TripStatus } from "../../../../types/trip";
+import { startTrip } from "../../../../trip-live/service/tripLiveService";
+import { ApiError } from "../../../../app/services/apiError";
+import type { TripFareOverview, TripStatus } from "../../../../types/trip";
 import "./TripDetailPage.css";
 
 const statusLabel: Record<TripStatus, string> = {
@@ -22,18 +25,52 @@ const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
   timeStyle: "short",
 });
 
+const currencyFormatter = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+
 function formatDateTime(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : dateTimeFormatter.format(date);
 }
 
+function formatCurrency(value: string | number | null | undefined) {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? currencyFormatter.format(amount) : "Indisponível";
+}
+
 export function TripDetailPage() {
   const { tripId: tripIdParam } = useParams();
   const tripId = Number(tripIdParam);
+  const navigate = useNavigate();
 
   const [trip, setTrip] = useState<DriverTripSummary | null>(null);
+  const [fareOverview, setFareOverview] = useState<TripFareOverview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [isStarting, setIsStarting] = useState(false);
+  const [startError, setStartError] = useState("");
+
+  function goLive() {
+    navigate(`/viagem/${tripId}/andamento`, {
+      state: { role: "driver", backTo: `/viagens/${tripId}` },
+    });
+  }
+
+  async function handleStart() {
+    setIsStarting(true);
+    setStartError("");
+    try {
+      await startTrip(tripId);
+      goLive();
+    } catch (error) {
+      setStartError(
+        error instanceof ApiError ? error.message : "Não foi possível iniciar a viagem."
+      );
+      setIsStarting(false);
+    }
+  }
 
   useEffect(() => {
     let shouldIgnore = false;
@@ -41,11 +78,16 @@ export function TripDetailPage() {
     async function loadTrip() {
       setIsLoading(true);
       setLoadError("");
+      setFareOverview(null);
 
       try {
-        const result = await getTripDetail(tripId);
+        const [result, fareResult] = await Promise.all([
+          getTripDetail(tripId),
+          getTripFareOverview(tripId),
+        ]);
         if (!shouldIgnore) {
           setTrip(result);
+          setFareOverview(fareResult);
         }
       } catch {
         if (!shouldIgnore) {
@@ -121,7 +163,50 @@ export function TripDetailPage() {
               </div>
             </div>
 
+            <section className="trip-cost-panel" aria-label="Custo da viagem">
+              <div>
+                <span>Custo total</span>
+                <strong>{formatCurrency(trip.cost?.total_cost)}</strong>
+              </div>
+              <div>
+                <span>Coberto por passageiros</span>
+                <strong>{formatCurrency(fareOverview?.covered_amount)}</strong>
+              </div>
+              <div>
+                <span>Com o motorista</span>
+                <strong>{formatCurrency(fareOverview?.driver_amount)}</strong>
+              </div>
+              <p>
+                {fareOverview
+                  ? `${fareOverview.confirmed_passengers} passageiro(s) confirmado(s) no rateio atual.`
+                  : "Rateio ainda indisponível."}
+              </p>
+            </section>
+
             <div className="trip-card__actions">
+              {trip.status === "in_progress" && (
+                <button type="button" className="button button--primary" onClick={goLive}>
+                  Acompanhar no mapa
+                </button>
+              )}
+              {(trip.status === "open" || trip.status === "full") && (
+                <button
+                  type="button"
+                  className="button button--primary"
+                  onClick={handleStart}
+                  disabled={isStarting}
+                >
+                  {isStarting ? "Iniciando…" : "Iniciar viagem"}
+                </button>
+              )}
+              <Link
+                to={`/viagens/${trip.id}/solicitacoes`}
+                className="button button--secondary"
+              >
+                {trip.pendingRequestsCount > 0
+                  ? `Solicitações (${trip.pendingRequestsCount})`
+                  : "Solicitações de reserva"}
+              </Link>
               <Link
                 to={`/chat/viagem/${trip.id}`}
                 state={{
@@ -133,15 +218,13 @@ export function TripDetailPage() {
               >
                 Chat da viagem
               </Link>
-              <Link
-                to={`/viagens/${trip.id}/solicitacoes`}
-                className="button button--primary"
-              >
-                {trip.pendingRequestsCount > 0
-                  ? `Ver solicitações (${trip.pendingRequestsCount} pendente${trip.pendingRequestsCount === 1 ? "" : "s"})`
-                  : "Ver solicitações de reserva"}
-              </Link>
             </div>
+
+            {startError && (
+              <p className="trip-detail-start-error" role="alert">
+                {startError}
+              </p>
+            )}
           </article>
         )}
       </section>
