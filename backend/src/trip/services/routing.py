@@ -31,7 +31,6 @@ __all__ = [
 class RoutingError(Exception):
     """Erro ao consultar o serviço de rotas (rede, resposta inválida, sem rota etc.)."""
 
-
 @dataclass
 class RouteResult:
     distance_km: float
