@@ -41,6 +41,8 @@ class Trip(models.Model):
 	line_trip = models.JSONField(null=True, blank=True)
 	total_distance_km = models.FloatField(blank=True, null=True)
 	total_duration_min = models.FloatField(blank=True, null=True)
+
+	route_legs = models.JSONField(null=True, blank=True)
 	departure_time = models.DateTimeField(db_index=True)
 	created_at = models.DateTimeField(auto_now_add=True)
 	updated_at = models.DateTimeField(auto_now=True)
@@ -62,24 +64,43 @@ class TripStop(models.Model):
 	location = models.ForeignKey('trip.Location', on_delete=models.SET_NULL, null=True)
 	order = models.IntegerField(
 	)
+	#avaliar a questão de uma trip stop fixa, 0 ou 1, as fixas seriam a do começo da viagem
 	class Meta:
 		unique_together = ['trip', 'location']
 		
 
+
+
+class TripCost(models.Model):
+	"""
+	Custo da viagem, calculado UMA VEZ na criação do Trip (distância
+	total x preço-por-km vigente naquele momento) e nunca mais alterado
+	depois — mesmo que a rota mude por causa de bookings confirmados.
+	Simplificação proposital: o preço não é variável, fica fixado.
+	"""
+	trip = models.OneToOneField('trip.Trip', on_delete=models.CASCADE, related_name='cost')
+	price_per_km = models.DecimalField(max_digits=6, decimal_places=2)
+	distance_km_snapshot = models.FloatField(help_text="total_distance_km do Trip no momento do cálculo")
+	total_cost = models.DecimalField(max_digits=10, decimal_places=2)
+	created_at = models.DateTimeField(auto_now_add=True)
+ 
+	def __str__(self):
+		return f"TripCost(trip={self.trip_id}, total={self.total_cost})"
+		
+		
 class Booking(models.Model):
 
 	trip = models.ForeignKey(Trip, related_name="bookings", on_delete=models.CASCADE)
 	passenger = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="bookings", on_delete=models.CASCADE,)
 	pickup_stop = models.ForeignKey(TripStop, related_name="pickup_bookings", on_delete=models.PROTECT)
 	dropoff_stop = models.ForeignKey(TripStop, related_name="dropoff_bookings", on_delete=models.PROTECT)
-	seats_requested = models.PositiveSmallIntegerField(default=1)
-
+	
 	class Status(models.TextChoices):
 		PENDING = "pending", "Aguardando motorista"
 		CONFIRMED = "confirmed", "Confirmada"
 		REJECTED = "rejected", "Recusada"
 		CANCELLED = "cancelled", "Cancelada pelo passageiro"
-    
+
 	status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
 
 	created_at = models.DateTimeField(auto_now_add=True)

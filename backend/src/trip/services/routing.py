@@ -12,7 +12,7 @@ aqui + uma linha na factory, sem mudar mais nada no projeto.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import requests
 from django.conf import settings
@@ -37,6 +37,13 @@ class RouteResult:
     distance_km: float
     duration_min: float
     geometry: dict  # GeoJSON, vai direto pro Trip.line_trip
+    # Um item por trecho entre cada par de coordenadas CONSECUTIVAS que
+    # mandamos (mesma ordem/tamanho: N coordenadas -> N-1 legs). Usado
+    # pelo rateamento de custo (ver selectors.get_fare_split) — sem isso
+    # só teríamos a distância total, não quanto cada trecho representa.
+    # default_factory=list: mantém compatível com quem já criava
+    # RouteResult sem passar legs (ex: FakeRoutingClient nos testes).
+    legs: list[dict] = field(default_factory=list)
 
 
 class BaseRoutingClient:
@@ -90,10 +97,19 @@ class MapboxRoutingClient(BaseRoutingClient):
 
         route = data["routes"][0]
 
+        legs = [
+            {
+                "distance_km": round(leg["distance"] / 1000, 2),
+                "duration_min": round(leg["duration"] / 60, 1),
+            }
+            for leg in route.get("legs", [])
+        ]
+
         return RouteResult(
             distance_km=round(route["distance"] / 1000, 2),
             duration_min=round(route["duration"] / 60, 1),
             geometry=route["geometry"],
+            legs=legs,
         )
 
 
@@ -104,6 +120,7 @@ def get_routing_client() -> BaseRoutingClient:
     de provedor diretamente.
     """
     provider = getattr(settings, "ROUTING_PROVIDER", "mapbox")
+
     if provider == "mapbox":
         return MapboxRoutingClient()
 
