@@ -16,7 +16,7 @@ env:
   NODE_VERSION: '22'
   SECRET_KEY: ${{ secrets.SECRET_KEY }}
   MAPBOX_ACCESS_TOKEN: ${{ secrets.MAPBOX_ACCESS_TOKEN }}
-
+  
 jobs:
   backend-tests:
     name: Backend tests
