@@ -89,7 +89,18 @@ class TestGetFareSplit:
 
         assert len(split) == 2
         assert {item["booking_id"] for item in split} == {booking_one.id, booking_two.id}
-        assert {str(item["amount"]) for item in split} == {"21.00"}
+        assert {str(item["amount"]) for item in split} == {"14.00"}
+
+    def test_quotes_passenger_share_for_selected_stops(self, open_trip):
+        stops = list(open_trip.stops.order_by("order"))
+        quote = selectors.get_projected_fare_quote(
+            trip=open_trip,
+            pickup_stop_id=stops[0].id,
+            dropoff_stop_id=stops[-1].id,
+        )
+
+        assert str(quote["estimated_amount"]) == "21.00"
+        assert quote["current_confirmed_passengers"] == 0
 
     def test_raises_when_route_legs_are_inconsistent(self, passenger_user, driver_profile, open_trip):
         stops = list(open_trip.stops.order_by("order"))

@@ -37,6 +37,8 @@ class TestTripFareSplitApi:
         assert response.data["trip_id"] == open_trip.id
         assert response.data["total_cost"] == "42.00"
         assert response.data["split"] == []
+        assert response.data["covered_amount"] == "0.00"
+        assert response.data["driver_amount"] == "42.00"
 
     def test_returns_current_split_for_confirmed_passengers(
         self, api_client, django_user_model, driver_profile, open_trip
@@ -66,12 +68,47 @@ class TestTripFareSplitApi:
         assert response.status_code == 200
         assert response.data["trip_id"] == open_trip.id
         assert response.data["total_cost"] == "42.00"
+        assert response.data["covered_amount"] == "28.00"
+        assert response.data["driver_amount"] == "14.00"
+        assert response.data["confirmed_passengers"] == 2
         assert len(response.data["split"]) == 2
         assert {item["booking_id"] for item in response.data["split"]} == {
             booking_one.id,
             booking_two.id,
         }
-        assert {item["amount"] for item in response.data["split"]} == {"21.00"}
+        assert {item["amount"] for item in response.data["split"]} == {"14.00"}
+
+
+class TestTripFareQuoteApi:
+    def test_returns_projected_amount_for_selected_stops(self, api_client, open_trip):
+        stops = list(open_trip.stops.order_by("order"))
+
+        response = api_client.get(
+            f"/api/trips/{open_trip.id}/fare-quote/",
+            {
+                "pickup_stop_id": stops[0].id,
+                "dropoff_stop_id": stops[-1].id,
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.data["trip_id"] == open_trip.id
+        assert response.data["estimated_amount"] == "21.00"
+        assert response.data["total_cost"] == "42.00"
+        assert response.data["current_confirmed_passengers"] == 0
+
+    def test_returns_400_when_pickup_is_after_dropoff(self, api_client, open_trip):
+        stops = list(open_trip.stops.order_by("order"))
+
+        response = api_client.get(
+            f"/api/trips/{open_trip.id}/fare-quote/",
+            {
+                "pickup_stop_id": stops[-1].id,
+                "dropoff_stop_id": stops[0].id,
+            },
+        )
+
+        assert response.status_code == 400
 
 
 class TestTripLifecycleApi:

@@ -4,9 +4,14 @@ import * as L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError } from "../../../../app/services/apiError";
-import type { TripDetail, TripStatus, TripStop } from "../../../../types/trip";
+import type {
+  TripDetail,
+  TripFareQuote,
+  TripStatus,
+  TripStop,
+} from "../../../../types/trip";
 import { createBooking } from "../../service/bookingService";
-import { getTripDetail } from "../../service/rideService";
+import { getTripDetail, getTripFareQuote } from "../../service/rideService";
 import "./TripDetailPage.css";
 
 const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
@@ -16,6 +21,11 @@ const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
 
 const distanceFormatter = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 1,
+});
+
+const currencyFormatter = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
 });
 
 const statusLabels: Record<TripStatus, string> = {
@@ -38,6 +48,9 @@ export function TripDetailPage() {
   const [dropoffStopId, setDropoffStopId] = useState<number | "">("");
   const [bookingError, setBookingError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fareQuote, setFareQuote] = useState<TripFareQuote | null>(null);
+  const [isLoadingFareQuote, setIsLoadingFareQuote] = useState(false);
+  const [fareQuoteError, setFareQuoteError] = useState("");
 
   const orderedStops = useMemo(
     () => (trip ? [...trip.stops].sort((a, b) => a.order - b.order) : []),
@@ -46,6 +59,9 @@ export function TripDetailPage() {
 
   const pickupStop = orderedStops.find((stop) => stop.id === pickupStopId);
   const dropoffStop = orderedStops.find((stop) => stop.id === dropoffStopId);
+  const selectedStopsAreValid = Boolean(
+    trip && pickupStop && dropoffStop && pickupStop.order < dropoffStop.order
+  );
 
   useEffect(() => {
     let shouldIgnore = false;
@@ -90,6 +106,48 @@ export function TripDetailPage() {
       shouldIgnore = true;
     };
   }, [tripId]);
+
+  useEffect(() => {
+    let shouldIgnore = false;
+
+    async function loadFareQuote() {
+      if (!trip || !pickupStop || !dropoffStop || pickupStop.order >= dropoffStop.order) {
+        setFareQuote(null);
+        setFareQuoteError("");
+        setIsLoadingFareQuote(false);
+        return;
+      }
+
+      setIsLoadingFareQuote(true);
+      setFareQuoteError("");
+
+      try {
+        const quote = await getTripFareQuote(trip.id, pickupStop.id, dropoffStop.id);
+        if (!shouldIgnore) {
+          setFareQuote(quote);
+        }
+      } catch (error) {
+        if (!shouldIgnore) {
+          setFareQuote(null);
+          setFareQuoteError(
+            error instanceof ApiError
+              ? error.message
+              : "Não foi possível calcular o valor deste trecho."
+          );
+        }
+      } finally {
+        if (!shouldIgnore) {
+          setIsLoadingFareQuote(false);
+        }
+      }
+    }
+
+    void loadFareQuote();
+
+    return () => {
+      shouldIgnore = true;
+    };
+  }, [trip, pickupStop, dropoffStop]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -200,6 +258,10 @@ export function TripDetailPage() {
                     <span>Duração</span>
                     <strong>{formatDuration(trip.total_duration_min)}</strong>
                   </div>
+                  <div>
+                    <span>Custo total</span>
+                    <strong>{formatCurrency(trip.cost?.total_cost)}</strong>
+                  </div>
                 </div>
 
                 {trip.status !== "open" && (
@@ -253,6 +315,24 @@ export function TripDetailPage() {
                     O embarque precisa vir antes do desembarque no trajeto.
                   </p>
 
+                  <div className="passenger-fare-box" aria-live="polite">
+                    <span>Valor estimado do seu trecho</span>
+                    <strong>
+                      {isLoadingFareQuote
+                        ? "Calculando..."
+                        : fareQuote
+                          ? formatCurrency(fareQuote.estimated_amount)
+                          : "Selecione um trecho válido"}
+                    </strong>
+                    <p>
+                      O cálculo usa a rota publicada e divide cada trecho entre
+                      motorista e passageiros que ocupam aquele trecho.
+                    </p>
+                    {fareQuoteError && (
+                      <small role="alert">{fareQuoteError}</small>
+                    )}
+                  </div>
+
                   {bookingError && (
                     <span className="passenger-booking-form__error" role="alert">
                       {bookingError}
@@ -272,7 +352,9 @@ export function TripDetailPage() {
                       disabled={
                         isSubmitting ||
                         trip.status !== "open" ||
-                        trip.available_seats <= 0
+                        trip.available_seats <= 0 ||
+                        !selectedStopsAreValid ||
+                        !fareQuote
                       }
                     >
                       {isSubmitting ? "Reservando..." : "Solicitar reserva"}
@@ -417,6 +499,11 @@ function formatDateTime(value: string) {
 
 function formatDistance(value: number) {
   return `${distanceFormatter.format(value)} km`;
+}
+
+function formatCurrency(value: string | number | null | undefined) {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? currencyFormatter.format(amount) : "Indisponível";
 }
 
 function formatDuration(totalMinutes: number) {

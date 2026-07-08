@@ -7,6 +7,7 @@ nada no banco — só monta queries e devolve dados.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.core.exceptions import PermissionDenied
@@ -15,6 +16,14 @@ from django.utils import timezone
 
 from core.exceptions import ApplicationError
 from .models import Trip, TripStop, Booking, City, Location, TripCost, DriverLocation
+
+
+@dataclass(frozen=True)
+class FareParticipant:
+    booking_id: int | None
+    passenger_id: int | None
+    pickup_order: int
+    dropoff_order: int
 
 
 # ---------------------------------------------------------------------------
@@ -51,11 +60,11 @@ def get_trips_opened(
     else:
         qs = qs.filter(departure_time__gte=timezone.now())
 
-    return qs.select_related("origin_city", "destine_city", "driver").order_by("departure_time")
+    return qs.select_related("origin_city", "destine_city", "driver", "cost").order_by("departure_time")
 
 
 def get_trip(trip_id: int) -> Trip:
-    return Trip.objects.select_related("driver", "origin_city", "destine_city").get(pk=trip_id)
+    return Trip.objects.select_related("driver", "origin_city", "destine_city", "cost").get(pk=trip_id)
 
 
 # ---------------------------------------------------------------------------
@@ -149,16 +158,8 @@ def get_confirmed_stop_ids(trip: Trip) -> set[int]:
 
 
 def get_route_stops(trip: Trip) -> QuerySet[TripStop]:
-    """Stops que devem estar na geometria agora: extremos + intermediários com booking confirmado."""
-    origin_stop, destination_stop = get_endpoint_stops(trip)
-    stop_ids = get_confirmed_stop_ids(trip)
-
-    if origin_stop:
-        stop_ids.add(origin_stop.id)
-    if destination_stop:
-        stop_ids.add(destination_stop.id)
-
-    return trip.stops.filter(id__in=stop_ids).select_related("location").order_by("order")
+    """Stops publicados pelo motorista, na ordem em que ele pretende passar."""
+    return get_trip_stops(trip)
 
 
 def get_confirmed_seats_count(trip: Trip) -> int:
@@ -201,19 +202,16 @@ def get_fare_split(trip: Trip) -> list[dict]:
     """
     Divide trip.cost.total_cost (TripCost, fixado na criação da viagem —
     ver services.create_trip_cost) entre os passageiros CONFIRMADOS,
-    proporcionalmente à distância de cada trecho da rota e a quantos
-    passageiros ocupavam aquele trecho especificamente — não é "total
-    dividido por N".
+    proporcionalmente à distância de cada trecho da rota, dividindo cada
+    trecho entre o motorista e os passageiros que ocupavam aquele trecho.
 
     Algoritmo, por trecho (par de paradas consecutivas na rota atual):
     1. custo_do_trecho = total_cost * (distância_do_trecho / distância_total)
     2. passageiros_no_trecho = confirmados cujo pickup.order <= início do
        trecho E dropoff.order >= fim do trecho (ou seja, estavam "a bordo"
        durante esse trecho inteiro)
-    3. custo_do_trecho é dividido igualmente entre eles
-    4. se NINGUÉM está no trecho (ex: motorista saindo de casa antes do
-       primeiro embarque), esse custo não é rateado — fica implícito
-       como custo do motorista, não de nenhum passageiro
+    3. custo_do_trecho é dividido entre esses passageiros + motorista
+    4. se NINGUÉM está no trecho, o trecho fica integralmente com o motorista
     5. o total de cada passageiro é a soma do que ele deve em cada
        trecho que ocupou
 
@@ -224,17 +222,81 @@ def get_fare_split(trip: Trip) -> list[dict]:
 
     Retorna: [{"booking_id": .., "passenger_id": .., "amount": Decimal}, ...]
     """
+    participants = _build_confirmed_fare_participants(trip)
+    fare_amounts = _calculate_fare_amounts(trip=trip, participants=participants)
+
+    return [
+        {
+            "booking_id": participant.booking_id,
+            "passenger_id": participant.passenger_id,
+            "amount": _quantize_money(fare_amounts[index]),
+        }
+        for index, participant in enumerate(participants)
+    ]
+
+
+def get_fare_overview(trip: Trip) -> dict:
+    total_cost = _get_total_cost(trip)
+    split = get_fare_split(trip)
+    covered_amount = sum((item["amount"] for item in split), start=Decimal("0"))
+
+    return {
+        "trip_id": trip.id,
+        "total_cost": total_cost,
+        "covered_amount": _quantize_money(covered_amount),
+        "driver_amount": _quantize_money(total_cost - covered_amount),
+        "confirmed_passengers": len(split),
+        "split": split,
+    }
+
+
+def get_projected_fare_quote(
+    *,
+    trip: Trip,
+    pickup_stop_id: int,
+    dropoff_stop_id: int,
+) -> dict:
+    pickup_stop = TripStop.objects.get(pk=pickup_stop_id, trip=trip)
+    dropoff_stop = TripStop.objects.get(pk=dropoff_stop_id, trip=trip)
+
+    if pickup_stop.order >= dropoff_stop.order:
+        raise ApplicationError("O ponto de embarque precisa vir antes do ponto de desembarque.")
+
+    participants = _build_confirmed_fare_participants(trip)
+    participants.append(
+        FareParticipant(
+            booking_id=None,
+            passenger_id=None,
+            pickup_order=pickup_stop.order,
+            dropoff_order=dropoff_stop.order,
+        )
+    )
+    fare_amounts = _calculate_fare_amounts(trip=trip, participants=participants)
+
+    return {
+        "trip_id": trip.id,
+        "pickup_stop_id": pickup_stop.id,
+        "dropoff_stop_id": dropoff_stop.id,
+        "estimated_amount": _quantize_money(fare_amounts[-1]),
+        "total_cost": _quantize_money(_get_total_cost(trip)),
+        "current_confirmed_passengers": max(len(participants) - 1, 0),
+    }
+
+
+def _get_total_cost(trip: Trip) -> Decimal:
     try:
-        total_cost = trip.cost.total_cost
+        return trip.cost.total_cost
     except TripCost.DoesNotExist:
         raise ValueError(
             "Essa viagem não tem TripCost associado — isso não deveria "
             "acontecer (create_trip sempre cria um junto). Verifique os dados."
         )
 
+
+def _get_route_cost_context(trip: Trip) -> tuple[list[TripStop], Decimal]:
     route_stops = list(get_route_stops(trip))
     if len(route_stops) < 2:
-        return []
+        return [], Decimal("0")
 
     if not trip.route_legs or len(trip.route_legs) != len(route_stops) - 1:
         raise ValueError(
@@ -245,39 +307,59 @@ def get_fare_split(trip: Trip) -> list[dict]:
     if not trip.total_distance_km or trip.total_distance_km <= 0:
         raise ValueError("A viagem não tem distância total calculada.")
 
-    total_distance = Decimal(str(trip.total_distance_km))
+    return route_stops, Decimal(str(trip.total_distance_km))
 
-    confirmed_bookings = list(
+
+def _build_confirmed_fare_participants(trip: Trip) -> list[FareParticipant]:
+    confirmed_bookings = (
         Booking.objects.filter(trip=trip, status=Booking.Status.CONFIRMED)
         .select_related("pickup_stop", "dropoff_stop", "passenger")
+        .order_by("id")
     )
-    fare_by_booking = {booking.id: Decimal("0") for booking in confirmed_bookings}
+
+    return [
+        FareParticipant(
+            booking_id=booking.id,
+            passenger_id=booking.passenger_id,
+            pickup_order=booking.pickup_stop.order,
+            dropoff_order=booking.dropoff_stop.order,
+        )
+        for booking in confirmed_bookings
+    ]
+
+
+def _calculate_fare_amounts(
+    *,
+    trip: Trip,
+    participants: list[FareParticipant],
+) -> list[Decimal]:
+    total_cost = _get_total_cost(trip)
+    route_stops, total_distance = _get_route_cost_context(trip)
+    if len(route_stops) < 2 or not participants:
+        return [Decimal("0.00") for _ in participants]
+
+    fare_amounts = [Decimal("0") for _ in participants]
 
     for index in range(len(route_stops) - 1):
         segment_start = route_stops[index]
         segment_end = route_stops[index + 1]
         leg_distance_km = Decimal(str(trip.route_legs[index]["distance_km"]))
-
         segment_cost = total_cost * leg_distance_km / total_distance
 
         passengers_on_segment = [
-            booking for booking in confirmed_bookings
-            if booking.pickup_stop.order <= segment_start.order
-            and booking.dropoff_stop.order >= segment_end.order
+            participant_index
+            for participant_index, participant in enumerate(participants)
+            if participant.pickup_order <= segment_start.order
+            and participant.dropoff_order >= segment_end.order
         ]
 
-        if not passengers_on_segment:
-            continue  # ninguém nesse trecho — custo fica implícito com o motorista
+        payer_count = len(passengers_on_segment) + 1  # motorista participa do rateio
+        share = segment_cost / payer_count
+        for participant_index in passengers_on_segment:
+            fare_amounts[participant_index] += share
 
-        share = segment_cost / len(passengers_on_segment)
-        for booking in passengers_on_segment:
-            fare_by_booking[booking.id] += share
+    return fare_amounts
 
-    return [
-        {
-            "booking_id": booking.id,
-            "passenger_id": booking.passenger_id,
-            "amount": fare_by_booking[booking.id].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
-        }
-        for booking in confirmed_bookings
-    ]
+
+def _quantize_money(value: Decimal) -> Decimal:
+    return value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
