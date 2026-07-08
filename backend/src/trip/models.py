@@ -48,7 +48,7 @@ class Trip(models.Model):
 	updated_at = models.DateTimeField(auto_now=True)
 	
 	#Estágios de uma trip 
-	class Status(models.TextChoices):
+  class Status(models.TextChoices):
 		OPEN = "open", "Aceitando passageiros"
 		FULL = "full", "Sem vagas disponíveis"
 		IN_PROGRESS = "in_progress", "Já iniciada"
@@ -100,6 +100,7 @@ class Booking(models.Model):
 		CONFIRMED = "confirmed", "Confirmada"
 		REJECTED = "rejected", "Recusada"
 		CANCELLED = "cancelled", "Cancelada pelo passageiro"
+
 	status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
 
 	created_at = models.DateTimeField(auto_now_add=True)
