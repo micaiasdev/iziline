@@ -92,3 +92,18 @@ export type CreateTripPayload = {
   destination_location_id: number;
   intermediate_location_ids: number[];
 };
+
+export type BookingStatus = "pending" | "confirmed" | "rejected" | "cancelled";
+
+// Booking (shape exato do contrato). O contrato só expõe o passageiro como
+// id (não há nome) — a UI mostra "Passageiro #<id>" a partir desse campo.
+export type Booking = {
+  id: number;
+  trip: number;
+  passenger: number;
+  pickup_stop: TripStop;
+  dropoff_stop: TripStop;
+  status: BookingStatus;
+  created_at: string;
+  confirmed_at: string | null;
+};

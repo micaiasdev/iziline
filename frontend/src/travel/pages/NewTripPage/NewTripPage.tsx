@@ -213,7 +213,13 @@ function tripStopsToRoutePoints(stops: TripStop[]): RoutePoint[] {
   }));
 }
 
-export function NewTripPage() {
+export function NewTripPage({
+  onTripCreated,
+  onViewRequests,
+}: {
+  onTripCreated: (tripId: number) => void;
+  onViewRequests: (tripId: number) => void;
+}) {
   const stopKeyCounter = useRef(0);
 
   const [stage, setStage] = useState<Stage>("form");
@@ -357,6 +363,7 @@ export function NewTripPage() {
       const trip = await createTrip(input);
       setCreatedTrip(trip);
       setStage("completed");
+      onTripCreated(trip.id);
     } catch (error) {
       setSubmissionError(
         error instanceof ApiError
@@ -482,8 +489,7 @@ export function NewTripPage() {
               <button
                 className="button button--secondary"
                 type="button"
-                disabled
-                title="Em breve: gerenciar solicitações de reserva desta viagem."
+                onClick={() => onViewRequests(createdTrip.id)}
               >
                 Ver solicitações de reserva
               </button>
