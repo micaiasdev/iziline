@@ -7,11 +7,13 @@ nada no banco — só monta queries e devolve dados.
 
 from __future__ import annotations
 
+from decimal import Decimal, ROUND_HALF_UP
+
 from django.core.exceptions import PermissionDenied
 from django.db.models import QuerySet
 from django.utils import timezone
 
-from .models import Trip, TripStop, Booking, City, Location
+from .models import Trip, TripStop, Booking, City, Location, TripCost
 
 
 # ---------------------------------------------------------------------------
@@ -165,3 +167,93 @@ def get_confirmed_seats_count(trip: Trip) -> int:
 
 def get_available_seats(trip: Trip) -> int:
     return trip.available_spots - get_confirmed_seats_count(trip)
+
+
+# ---------------------------------------------------------------------------
+# Rateamento de custo
+# ---------------------------------------------------------------------------
+
+def get_fare_split(trip: Trip) -> list[dict]:
+    """
+    Divide trip.cost.total_cost (TripCost, fixado na criação da viagem —
+    ver services.create_trip_cost) entre os passageiros CONFIRMADOS,
+    proporcionalmente à distância de cada trecho da rota e a quantos
+    passageiros ocupavam aquele trecho especificamente — não é "total
+    dividido por N".
+
+    Algoritmo, por trecho (par de paradas consecutivas na rota atual):
+    1. custo_do_trecho = total_cost * (distância_do_trecho / distância_total)
+    2. passageiros_no_trecho = confirmados cujo pickup.order <= início do
+       trecho E dropoff.order >= fim do trecho (ou seja, estavam "a bordo"
+       durante esse trecho inteiro)
+    3. custo_do_trecho é dividido igualmente entre eles
+    4. se NINGUÉM está no trecho (ex: motorista saindo de casa antes do
+       primeiro embarque), esse custo não é rateado — fica implícito
+       como custo do motorista, não de nenhum passageiro
+    5. o total de cada passageiro é a soma do que ele deve em cada
+       trecho que ocupou
+
+    Requer trip.route_legs consistente com a rota atual (chame
+    recalculate_route() antes se a rota mudou desde o último cálculo) —
+    trip.cost.total_cost em si NÃO muda, só a forma como é dividido pode
+    mudar se os stops confirmados mudarem.
+
+    Retorna: [{"booking_id": .., "passenger_id": .., "amount": Decimal}, ...]
+    """
+    try:
+        total_cost = trip.cost.total_cost
+    except TripCost.DoesNotExist:
+        raise ValueError(
+            "Essa viagem não tem TripCost associado — isso não deveria "
+            "acontecer (create_trip sempre cria um junto). Verifique os dados."
+        )
+
+    route_stops = list(get_route_stops(trip))
+    if len(route_stops) < 2:
+        return []
+
+    if not trip.route_legs or len(trip.route_legs) != len(route_stops) - 1:
+        raise ValueError(
+            "trip.route_legs não bate com o número de trechos da rota atual — "
+            "chame recalculate_route(trip) antes de ratear."
+        )
+
+    if not trip.total_distance_km or trip.total_distance_km <= 0:
+        raise ValueError("A viagem não tem distância total calculada.")
+
+    total_distance = Decimal(str(trip.total_distance_km))
+
+    confirmed_bookings = list(
+        Booking.objects.filter(trip=trip, status=Booking.Status.CONFIRMED)
+        .select_related("pickup_stop", "dropoff_stop", "passenger")
+    )
+    fare_by_booking = {booking.id: Decimal("0") for booking in confirmed_bookings}
+
+    for index in range(len(route_stops) - 1):
+        segment_start = route_stops[index]
+        segment_end = route_stops[index + 1]
+        leg_distance_km = Decimal(str(trip.route_legs[index]["distance_km"]))
+
+        segment_cost = total_cost * leg_distance_km / total_distance
+
+        passengers_on_segment = [
+            booking for booking in confirmed_bookings
+            if booking.pickup_stop.order <= segment_start.order
+            and booking.dropoff_stop.order >= segment_end.order
+        ]
+
+        if not passengers_on_segment:
+            continue  # ninguém nesse trecho — custo fica implícito com o motorista
+
+        share = segment_cost / len(passengers_on_segment)
+        for booking in passengers_on_segment:
+            fare_by_booking[booking.id] += share
+
+    return [
+        {
+            "booking_id": booking.id,
+            "passenger_id": booking.passenger_id,
+            "amount": fare_by_booking[booking.id].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
+        }
+        for booking in confirmed_bookings
+    ]
