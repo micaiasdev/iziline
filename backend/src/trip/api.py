@@ -70,7 +70,7 @@ class TripDetailOutputSerializer(serializers.ModelSerializer):
     fields = [
       "id", "driver", "origin_city", "destine_city",
       "departure_time", "available_spots", "available_seats",
-      "status", "line_trip",c "total_distance_km", "total_duration_min",
+      "status", "line_trip", "total_distance_km", "total_duration_min",
       "stops", "created_at", "updated_at",
     ]
 
