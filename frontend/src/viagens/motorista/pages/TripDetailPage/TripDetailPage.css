@@ -146,6 +146,40 @@
   overflow-wrap: anywhere;
 }
 
+.trip-cost-panel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  border: 1px solid #cfe3e1;
+  border-radius: 8px;
+  background: var(--teal-wash);
+  padding: 12px;
+}
+
+.trip-cost-panel div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.trip-cost-panel span,
+.trip-cost-panel p {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.trip-cost-panel strong {
+  color: var(--teal-deep);
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.trip-cost-panel p {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
 .trip-card__actions {
   display: flex;
   flex-direction: column;
@@ -222,5 +256,11 @@
 
   .trip-card__actions .button {
     width: auto;
+  }
+}
+
+@media (max-width: 520px) {
+  .trip-cost-panel {
+    grid-template-columns: 1fr;
   }
 }
