@@ -2,11 +2,20 @@ import { useEffect, useState } from 'react'
 import './App.css'
 import { RideSearchPage } from './carona/pages/RideSearchPage/RideSearchPage'
 import { NewTripPage } from './travel/pages/NewTripPage/NewTripPage'
+import { MyTripsPage } from './agenda/pages/MyTripsPage/MyTripsPage'
 
-type AppView = 'newTrip' | 'rides'
+type AppView = 'newTrip' | 'rides' | 'myTrips'
 
 function getViewFromPath(): AppView {
-  return window.location.pathname === '/caronas' ? 'rides' : 'newTrip'
+  if (window.location.pathname === '/caronas') {
+    return 'rides'
+  }
+
+  if (window.location.pathname === '/minhas-viagens') {
+    return 'myTrips'
+  }
+
+  return 'newTrip'
 }
 
 function App() {
@@ -46,9 +55,18 @@ function App() {
         >
           Buscar caronas
         </button>
+        <button
+          type="button"
+          className={view === 'myTrips' ? 'app-navigation__item active' : 'app-navigation__item'}
+          onClick={() => navigateTo('/minhas-viagens', 'myTrips')}
+        >
+          Minhas viagens
+        </button>
       </nav>
 
-      {view === 'rides' ? <RideSearchPage /> : <NewTripPage />}
+      {view === 'rides' && <RideSearchPage />}
+      {view === 'myTrips' && <MyTripsPage />}
+      {view === 'newTrip' && <NewTripPage />}
     </>
   )
 }

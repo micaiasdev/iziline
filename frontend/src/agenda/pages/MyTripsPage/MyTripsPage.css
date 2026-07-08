@@ -1,0 +1,237 @@
+.my-trips-page {
+  --iziline-navy: #263647;
+  --iziline-navy-soft: #31465b;
+  --iziline-teal: #4f8f8c;
+  --iziline-teal-dark: #3f7774;
+  --iziline-teal-light: #e7f1f0;
+  --iziline-page: #f5f8f7;
+  --iziline-border: #d7e1e0;
+  --iziline-muted: #667678;
+
+  box-sizing: border-box;
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  overflow-x: hidden;
+  background: var(--iziline-page);
+  color: var(--iziline-navy);
+  padding: 32px 24px;
+}
+
+.my-trips-page *,
+.my-trips-page *::before,
+.my-trips-page *::after {
+  box-sizing: border-box;
+}
+
+.my-trips-shell {
+  display: grid;
+  gap: 22px;
+  width: min(100%, 1040px);
+  margin: 0 auto;
+}
+
+.my-trips-header {
+  display: grid;
+  gap: 6px;
+}
+
+.my-trips-header p {
+  color: var(--iziline-teal-dark);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.my-trips-header h1 {
+  color: var(--iziline-navy);
+  font-size: clamp(1.6rem, 5vw, 2.25rem);
+  line-height: 1.15;
+  margin: 0;
+}
+
+.my-trips-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.my-trips-tabs__item {
+  min-height: 42px;
+  padding: 0 16px;
+  color: var(--iziline-navy);
+  background: #ffffff;
+  border: 1px solid var(--iziline-border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.my-trips-tabs__item:hover,
+.my-trips-tabs__item.active {
+  color: var(--iziline-teal-dark);
+  background: var(--iziline-teal-light);
+  border-color: rgba(79, 143, 140, 0.38);
+}
+
+.my-trips-error {
+  color: #b42318;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.my-trips-list {
+  display: grid;
+  gap: 14px;
+}
+
+.trip-card,
+.my-trips-empty {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(79, 143, 140, 0.22);
+  border-radius: 8px;
+  box-shadow: 0 18px 40px rgba(38, 54, 71, 0.1);
+}
+
+.trip-card {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  padding: 18px;
+}
+
+.trip-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.trip-card__role {
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 0.82rem;
+  padding: 6px 10px;
+}
+
+.trip-card__role--driver {
+  background: var(--iziline-teal-light);
+  color: var(--iziline-teal-dark);
+}
+
+.trip-card__role--passenger {
+  background: var(--iziline-navy-soft);
+  color: #ffffff;
+}
+
+.trip-card__status {
+  color: #b42318;
+  font-weight: 800;
+  font-size: 0.82rem;
+}
+
+.trip-card__route,
+.trip-card__meta {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.trip-card__route {
+  grid-template-columns: 1fr 1fr;
+}
+
+.trip-card__meta {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding-top: 14px;
+  border-top: 1px solid var(--iziline-border);
+}
+
+.trip-card__actions {
+  display: grid;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--iziline-border);
+}
+
+.trip-card__cancel-button {
+  justify-self: start;
+  min-height: 44px;
+  padding: 0 18px;
+  background: #ffffff;
+  border: 1px solid #b42318;
+  border-radius: 8px;
+  color: #b42318;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.trip-card__cancel-button:hover:not(:disabled) {
+  background: #fdecea;
+}
+
+.trip-card__cancel-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.trip-card__cancel-error {
+  color: #b42318;
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.trip-card span,
+.my-trips-empty p {
+  color: var(--iziline-muted);
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.trip-card strong,
+.my-trips-empty strong {
+  color: var(--iziline-navy);
+  display: block;
+  font-size: 1rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.my-trips-empty {
+  display: grid;
+  gap: 6px;
+  padding: 22px;
+  text-align: center;
+}
+
+.my-trips-empty p {
+  margin: 0;
+}
+
+@media (max-width: 780px) {
+  .my-trips-page {
+    padding: 24px 18px;
+  }
+
+  .trip-card__route,
+  .trip-card__meta {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 540px) {
+  .my-trips-page {
+    padding: 18px 14px;
+  }
+
+  .trip-card {
+    padding: 16px;
+  }
+
+  .my-trips-tabs {
+    flex-direction: column;
+  }
+}
