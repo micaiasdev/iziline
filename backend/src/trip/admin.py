@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.db.models import Count
 from unfold.admin import ModelAdmin, TabularInline
-from .models import ProfileDriver, City, Location, Trip, TripStop, Booking
+from .models import ProfileDriver, City, Location, Trip, TripStop, Booking, DriverLocation
 
 
 # ---------------------------------------------------------------------------
@@ -96,3 +96,11 @@ class BookingAdmin(ModelAdmin):
     list_filter = ["status"]
     search_fields = ["trip__id", "passenger__username"]
     autocomplete_fields = ["trip", "passenger", "pickup_stop", "dropoff_stop"]
+
+
+@admin.register(DriverLocation)
+class DriverLocationAdmin(ModelAdmin):
+    list_display = ["trip", "latitude", "longitude", "updated_at"]
+    search_fields = ["trip__id"]
+    autocomplete_fields = ["trip"]
+    readonly_fields = ["updated_at"]

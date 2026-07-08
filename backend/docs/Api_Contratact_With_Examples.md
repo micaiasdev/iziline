@@ -365,6 +365,68 @@ Exemplo:
 }
 ```
 
+### GET `/api/trips/<trip_id>/location/`
+
+Retorna a ultima localizacao conhecida do motorista.
+
+Params:
+
+- `trip_id` `int` obrigatorio na URL
+
+Resposta `200`:
+
+```json
+{
+  "trip_id": 1,
+  "latitude": -5.089,
+  "longitude": -42.801,
+  "updated_at": "2026-07-08T14:05:00Z"
+}
+```
+
+Observacoes:
+
+- So funciona quando a trip estiver com `status=in_progress`.
+- So pode consultar quem participa da viagem.
+- Participante = motorista da trip ou passageiro com booking `confirmed`.
+- Se a trip ainda nao tiver localizacao registrada, retorna `404`.
+
+### POST `/api/trips/<trip_id>/location/`
+
+Cria ou atualiza a localizacao atual do motorista.
+
+Params:
+
+- `trip_id` `int` obrigatorio na URL
+
+Body:
+
+```json
+{
+  "latitude": -5.089,
+  "longitude": -42.801
+}
+```
+
+Resposta `200`:
+
+```json
+{
+  "trip_id": 1,
+  "latitude": -5.089,
+  "longitude": -42.801,
+  "updated_at": "2026-07-08T14:05:00Z"
+}
+```
+
+Observacoes:
+
+- So o motorista dono da trip pode atualizar.
+- So funciona quando a trip estiver com `status=in_progress`.
+- O endpoint faz upsert: cria no primeiro envio e atualiza nos proximos.
+- `latitude` deve estar entre `-90` e `90`.
+- `longitude` deve estar entre `-180` e `180`.
+
 ### POST `/api/trips/<trip_id>/reorder/`
 
 Reordena as paradas da viagem.
@@ -635,6 +697,7 @@ Resposta `200`:
 - `available_seats` e calculado dinamicamente por `selectors.get_available_seats`.
 - O endpoint de listagem de booking requests filtra `pending` por padrao.
 - `TripDetail` agora inclui `started_at` e `finished_at`.
+- Existe `DriverLocation`, que guarda apenas a localizacao atual do motorista.
 - Existe uma `TripRouteApi` em `backend/src/trip/api.py`, mas ela nao esta
   exposta em `backend/src/trip/urls.py`, portanto nao faz parte da API ativa.
 
@@ -648,6 +711,8 @@ Resposta `200`:
 - `POST /api/trips/<trip_id>/finish/` exige que o usuario autenticado seja o dono da trip.
 - `finish` so funciona com `status=in_progress`.
 - Ao finalizar, a trip vira `finished` e `finished_at` recebe o horario atual.
+- `GET /api/trips/<trip_id>/location/` e `POST /api/trips/<trip_id>/location/` so funcionam com `status=in_progress`.
+- A localizacao do motorista e acessivel apenas para participantes da viagem.
 
 ## Status e valores relevantes
 

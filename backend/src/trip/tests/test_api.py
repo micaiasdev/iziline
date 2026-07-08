@@ -137,3 +137,101 @@ class TestTripLifecycleApi:
         response = api_client.post(f"/api/trips/{open_trip.id}/finish/")
 
         assert response.status_code == 400
+
+
+class TestTripDriverLocationApi:
+    def _start_trip(self, *, passenger_user, driver_profile, trip):
+        stops = list(trip.stops.order_by("order"))
+        booking = trip_services.create_booking_request(
+            passenger=passenger_user,
+            trip_id=trip.id,
+            pickup_stop_id=stops[0].id,
+            dropoff_stop_id=stops[-1].id,
+        )
+        trip_services.accept_booking_request(booking_id=booking.id, driver_profile_id=driver_profile.id)
+        trip.departure_time = timezone.now()
+        trip.save(update_fields=["departure_time"])
+        trip_services.start_trip(trip_id=trip.id, driver_profile_id=driver_profile.id)
+
+    def test_driver_can_upsert_location(
+        self, api_client, passenger_user, driver_user, driver_profile, open_trip
+    ):
+        self._start_trip(passenger_user=passenger_user, driver_profile=driver_profile, trip=open_trip)
+        api_client.force_authenticate(user=driver_user)
+
+        response = api_client.post(
+            f"/api/trips/{open_trip.id}/location/",
+            {"latitude": -5.089, "longitude": -42.801},
+            format="json",
+        )
+
+        assert response.status_code == 200
+        assert response.data["trip_id"] == open_trip.id
+        assert response.data["latitude"] == -5.089
+        assert response.data["longitude"] == -42.801
+
+    def test_confirmed_passenger_can_get_location(
+        self, api_client, passenger_user, driver_profile, open_trip
+    ):
+        self._start_trip(passenger_user=passenger_user, driver_profile=driver_profile, trip=open_trip)
+        trip_services.upsert_driver_location(
+            trip_id=open_trip.id,
+            driver_profile_id=driver_profile.id,
+            latitude=-5.089,
+            longitude=-42.801,
+        )
+        api_client.force_authenticate(user=passenger_user)
+
+        response = api_client.get(f"/api/trips/{open_trip.id}/location/")
+
+        assert response.status_code == 200
+        assert response.data["trip_id"] == open_trip.id
+
+    def test_get_returns_404_when_location_does_not_exist(
+        self, api_client, passenger_user, driver_profile, open_trip
+    ):
+        self._start_trip(passenger_user=passenger_user, driver_profile=driver_profile, trip=open_trip)
+        api_client.force_authenticate(user=passenger_user)
+
+        response = api_client.get(f"/api/trips/{open_trip.id}/location/")
+
+        assert response.status_code == 404
+
+    def test_get_returns_403_for_non_participant(
+        self, api_client, passenger_user, driver_profile, open_trip, django_user_model
+    ):
+        self._start_trip(passenger_user=passenger_user, driver_profile=driver_profile, trip=open_trip)
+        trip_services.upsert_driver_location(
+            trip_id=open_trip.id,
+            driver_profile_id=driver_profile.id,
+            latitude=-5.089,
+            longitude=-42.801,
+        )
+        outsider = django_user_model.objects.create_user(username="outsider", password="x")
+        api_client.force_authenticate(user=outsider)
+
+        response = api_client.get(f"/api/trips/{open_trip.id}/location/")
+
+        assert response.status_code == 403
+
+    def test_get_returns_400_when_trip_not_in_progress(
+        self, api_client, driver_user, open_trip
+    ):
+        api_client.force_authenticate(user=driver_user)
+
+        response = api_client.get(f"/api/trips/{open_trip.id}/location/")
+
+        assert response.status_code == 400
+
+    def test_post_returns_400_when_trip_not_in_progress(
+        self, api_client, driver_user, open_trip
+    ):
+        api_client.force_authenticate(user=driver_user)
+
+        response = api_client.post(
+            f"/api/trips/{open_trip.id}/location/",
+            {"latitude": -5.089, "longitude": -42.801},
+            format="json",
+        )
+
+        assert response.status_code == 400
