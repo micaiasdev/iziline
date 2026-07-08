@@ -9,9 +9,9 @@ nem conexão com a internet.
 
 from datetime import timedelta
 
-import pytest
-from django.contrib.auth import get_user_model
-from django.utils import timezone
+import pytest # type: ignore
+from django.contrib.auth import get_user_model # type: ignore
+from django.utils import timezone # type: ignore
 
 from trip.models import ProfileDriver, City, Location
 from trip.services import trip as trip_services
