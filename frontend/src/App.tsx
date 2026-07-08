@@ -4,6 +4,7 @@ import { RideSearchPage } from './carona/pages/RideSearchPage/RideSearchPage'
 import { NewTripPage } from './travel/pages/NewTripPage/NewTripPage'
 import { TripRequestsPage } from './travel/pages/TripRequestsPage/TripRequestsPage'
 import { TripsListPage } from './travel/pages/TripsListPage/TripsListPage'
+import { TripDetailPage } from './travel/pages/TripDetailPage/TripDetailPage'
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
         <Route index element={<Navigate to="/viagens" replace />} />
         <Route path="viagens" element={<TripsListPage />} />
         <Route path="viagens/nova" element={<NewTripPage />} />
+        <Route path="viagens/:tripId" element={<TripDetailPage />} />
         <Route path="viagens/:tripId/solicitacoes" element={<TripRequestsPage />} />
         <Route path="caronas" element={<RideSearchPage />} />
         <Route path="*" element={<Navigate to="/viagens" replace />} />

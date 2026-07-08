@@ -86,7 +86,7 @@ export function TripsListPage() {
             {trips.map((trip) => (
               <Link
                 key={trip.id}
-                to={`/viagens/${trip.id}/solicitacoes`}
+                to={`/viagens/${trip.id}`}
                 className="trip-summary-card"
               >
                 <div className="trip-summary-card__header">
