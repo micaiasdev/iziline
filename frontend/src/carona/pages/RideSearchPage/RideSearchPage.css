@@ -105,6 +105,17 @@
   border-color: var(--iziline-teal-dark);
 }
 
+.ride-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+.ride-button--booked {
+  background: var(--iziline-teal-light);
+  border: 1px solid rgba(79, 143, 140, 0.38);
+  color: var(--iziline-teal-dark);
+}
+
 .ride-results {
   display: grid;
   gap: 14px;
@@ -186,6 +197,19 @@
   color: var(--iziline-teal-dark);
   font-weight: 800;
   padding: 8px 10px;
+}
+
+.ride-card__actions {
+  display: grid;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--iziline-border);
+}
+
+.ride-card__booking-error {
+  color: #b42318;
+  font-size: 0.88rem;
+  line-height: 1.35;
 }
 
 .ride-results__empty {
