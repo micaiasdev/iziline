@@ -15,6 +15,7 @@ import type {
   LoginCredentials,
   RegisterInput,
   TokenPair,
+  UpdateProfileInput,
 } from "../../types/auth";
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
@@ -41,6 +42,27 @@ function buildMockUser(email: string, overrides: Partial<AuthUser> = {}): AuthUs
     phone: "",
     ...overrides,
   };
+}
+
+function calculateAge(birthDate: string | null): number | null {
+  if (!birthDate) {
+    return null;
+  }
+
+  const parsed = new Date(`${birthDate}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  const today = new Date();
+  let age = today.getFullYear() - parsed.getFullYear();
+  const monthDelta = today.getMonth() - parsed.getMonth();
+
+  if (monthDelta < 0 || (monthDelta === 0 && today.getDate() < parsed.getDate())) {
+    age -= 1;
+  }
+
+  return age >= 0 ? age : null;
 }
 
 // POST /api/auth/login/ → { access, refresh }. Guarda os tokens e devolve o
@@ -112,6 +134,34 @@ export async function fetchMe(): Promise<AuthUser> {
     return data;
   } catch (error) {
     throw buildApiError(error, "Não foi possível carregar seu perfil.");
+  }
+}
+
+// PATCH /api/users/me/ - atualiza apenas os campos editáveis do perfil.
+export async function updateProfile(input: UpdateProfileInput): Promise<AuthUser> {
+  if (USE_MOCK) {
+    await mockDelay();
+    const stored = getMockUser();
+    if (!stored) {
+      throw buildApiError(null, 'Sessão expirada.');
+    }
+
+    const user: AuthUser = {
+      ...stored,
+      full_name: input.full_name,
+      phone: input.phone,
+      birth_date: input.birth_date,
+      age: calculateAge(input.birth_date),
+    };
+    setMockUser(user);
+    return user;
+  }
+
+  try {
+    const { data } = await apiClient.patch<AuthUser>('/api/users/me/', input);
+    return data;
+  } catch (error) {
+    throw buildApiError(error, 'Não foi possível salvar. Tente novamente.');
   }
 }
 
