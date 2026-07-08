@@ -104,7 +104,6 @@ def get_routing_client() -> BaseRoutingClient:
     de provedor diretamente.
     """
     provider = getattr(settings, "ROUTING_PROVIDER", "mapbox")
-
     if provider == "mapbox":
         return MapboxRoutingClient()
 
