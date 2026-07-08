@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
   acceptRequest,
   listBookingRequests,
@@ -182,6 +182,7 @@ export function TripRequestsPage() {
               <BookingCard
                 key={booking.id}
                 booking={booking}
+                tripId={tripId}
                 actionState={actionState[booking.id] ?? "idle"}
                 error={actionError[booking.id]}
                 onAccept={() => handleDecision(booking, "accept")}
@@ -201,18 +202,21 @@ export function TripRequestsPage() {
 
 function BookingCard({
   booking,
+  tripId,
   actionState,
   error,
   onAccept,
   onReject,
 }: {
   booking: Booking;
+  tripId: number;
   actionState: ActionState;
   error?: string;
   onAccept: () => void;
   onReject: () => void;
 }) {
   const isBusy = actionState !== "idle";
+  const canChat = booking.status === "pending" || booking.status === "confirmed";
 
   return (
     <article className="booking-card">
@@ -245,6 +249,20 @@ function BookingCard({
         <span className="booking-card__error" role="alert">
           {error}
         </span>
+      )}
+
+      {canChat && (
+        <Link
+          to={`/chat/reserva/${booking.id}`}
+          state={{
+            title: `Passageiro #${booking.passenger}`,
+            subtitle: `Reserva #${booking.id}`,
+            backTo: `/viagens/${tripId}/solicitacoes`,
+          }}
+          className="booking-card__chat-link"
+        >
+          Conversar com o passageiro
+        </Link>
       )}
 
       {booking.status === "pending" && (

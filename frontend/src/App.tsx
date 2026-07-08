@@ -4,6 +4,8 @@ import { ProtectedRoute } from './app/auth/ProtectedRoute'
 import { PublicOnlyRoute } from './app/auth/PublicOnlyRoute'
 import { LoginPage } from './app/auth/pages/LoginPage/LoginPage'
 import { RegisterPage } from './app/auth/pages/RegisterPage/RegisterPage'
+import { ReservationChatPage } from './chat/pages/ReservationChatPage/ReservationChatPage'
+import { TripChatPage } from './chat/pages/TripChatPage/TripChatPage'
 import { RideSearchPage } from './viagens/passageiro/pages/RideSearchPage/RideSearchPage'
 import { TripDetailPage as PassengerTripDetailPage } from './viagens/passageiro/pages/TripDetailPage/TripDetailPage'
 import { MyTripsPage } from './viagens/passageiro/pages/MyTripsPage/MyTripsPage'
@@ -23,6 +25,10 @@ function App() {
 
       {/* Protegido: exige usuário autenticado. */}
       <Route element={<ProtectedRoute />}>
+        {/* Chat em tela cheia (sem a navegação inferior). */}
+        <Route path="chat/reserva/:bookingId" element={<ReservationChatPage />} />
+        <Route path="chat/viagem/:tripId" element={<TripChatPage />} />
+
         <Route element={<AppShell />}>
           <Route index element={<Navigate to="/viagens" replace />} />
           <Route path="viagens" element={<TripsListPage />} />

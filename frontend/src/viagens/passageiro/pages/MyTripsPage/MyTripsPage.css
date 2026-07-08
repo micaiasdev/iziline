@@ -181,6 +181,31 @@
   border-top: 1px solid var(--border);
 }
 
+.passenger-booking-card__chat-link {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  background: var(--teal-wash);
+  border: 1px solid #cfe3e1;
+  border-radius: 8px;
+  color: var(--teal-deep);
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.passenger-booking-card__chat-link:hover {
+  background: #dcebe9;
+}
+
+.passenger-booking-card__chat-link:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
 .passenger-booking-card__cancel-button {
   justify-self: start;
   min-height: 44px;

@@ -148,6 +148,8 @@
 
 .trip-card__actions {
   display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .button {
@@ -181,6 +183,21 @@
   outline-offset: 2px;
 }
 
+.button--secondary {
+  background: var(--teal-wash);
+  border: 1px solid #cfe3e1;
+  color: var(--teal-deep);
+}
+
+.button--secondary:hover {
+  background: #dcebe9;
+}
+
+.button--secondary:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .button {
     transition: none;
@@ -193,6 +210,7 @@
   }
 
   .trip-card__actions {
+    flex-direction: row;
     justify-content: flex-end;
   }
 
