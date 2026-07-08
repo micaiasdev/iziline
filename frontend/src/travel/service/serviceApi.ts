@@ -1,81 +1,55 @@
-import { isAxiosError } from 'axios'
-
 import type {
   CreateTripInput,
   CreateTripPayload,
-  TripResponse
-} from '../../types/trip'
-import { apiClient } from './apiClient'
+  TripDetail,
+} from "../../types/trip";
+import { apiClient } from "./apiClient";
+import { ApiError, buildApiError } from "./apiError";
+import { buildCreatedTripMock } from "../mocks/trip.mock";
 
-export class ApiError extends Error {
-  readonly status: number
-  readonly body: unknown
+export { ApiError };
 
-  constructor(message: string, status: number, body?: unknown) {
-    super(message)
-    this.name = 'ApiError'
-    this.status = status
-    this.body = body
-  }
-}
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 
-export function buildDepartureAt(date: string, time: string): string {
-  const departureAt = new Date(`${date}T${time}`)
+export function buildDepartureTime(date: string, time: string): string {
+  const departure = new Date(`${date}T${time}`);
 
-  if (Number.isNaN(departureAt.getTime())) {
-    throw new ApiError('Data ou horario da viagem invalidos.', 0)
+  if (Number.isNaN(departure.getTime())) {
+    throw new ApiError("Data ou horário da viagem inválidos.", 0);
   }
 
-  return departureAt.toISOString()
+  return departure.toISOString();
 }
 
-export async function createTrip(
-  input: CreateTripInput
-): Promise<TripResponse> {
-  const payload = buildCreateTripPayload(input)
+// 1c. Criar viagem — POST /api/trips/
+export async function createTrip(input: CreateTripInput): Promise<TripDetail> {
+  const payload = buildCreateTripPayload(input);
+
+  if (USE_MOCK) {
+    await mockDelay();
+    return buildCreatedTripMock(input, payload);
+  }
 
   try {
-    const response = await apiClient.post<TripResponse>('/api/trips/', payload)
-    return response.data
+    const { data } = await apiClient.post<TripDetail>("/api/trips/", payload);
+    return data;
   } catch (error) {
-    throw buildApiError(error, 'Nao foi possivel cadastrar a viagem.')
+    throw buildApiError(error, "Não foi possível cadastrar a viagem.");
   }
 }
 
 function buildCreateTripPayload(input: CreateTripInput): CreateTripPayload {
   return {
-    origin: input.origin.trim(),
-    destination: input.destination.trim(),
-    departure_at: buildDepartureAt(input.date, input.time),
-    seats_available: input.availableSeats
-  }
+    origin_city_id: input.originCityId,
+    destine_city_id: input.destineCityId,
+    departure_time: buildDepartureTime(input.date, input.time),
+    available_spots: input.availableSpots,
+    origin_location_id: input.originLocationId,
+    destination_location_id: input.destinationLocationId,
+    intermediate_location_ids: input.intermediateLocationIds,
+  };
 }
 
-function buildApiError(error: unknown, fallbackMessage: string): ApiError {
-  if (error instanceof ApiError) {
-    return error
-  }
-
-  if (isAxiosError(error)) {
-    return new ApiError(
-      getApiErrorMessage(error.response?.data) ?? fallbackMessage,
-      error.response?.status ?? 0,
-      error.response?.data
-    )
-  }
-
-  return new ApiError(fallbackMessage, 0, error)
+function mockDelay(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 420));
 }
-
-function getApiErrorMessage(body: unknown): string | undefined {
-  if (!body || typeof body !== 'object') {
-    return undefined
-  }
-
-  if ('detail' in body && typeof body.detail === 'string') {
-    return body.detail
-  }
-
-  return undefined
-}
-

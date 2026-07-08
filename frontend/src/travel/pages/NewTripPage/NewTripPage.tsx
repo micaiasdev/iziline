@@ -1,616 +1,501 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FormField } from "../../../components/FormField/FormField";
-import { calculateTripCosts } from "../../service/costService";
-import { getPossibleAddresses } from "../../service/locationService";
+import { CitySearch } from "../../../components/CitySearch/CitySearch";
+import { getCityLocations } from "../../service/cityService";
 import { createTrip } from "../../service/serviceApi";
+import { ApiError } from "../../service/apiError";
 import type {
-  NewTripFormData,
-  TripCostEstimate,
-  TripResponse,
+  CitySearchResult,
+  CreateTripInput,
+  Location,
+  TripDetail,
+  TripStop,
 } from "../../../types/trip";
 import izilineLogo from "../../../assets/iziline.png";
 import "./NewTripPage.css";
 
-const initialFormData: NewTripFormData = {
-  origin: "",
-  destination: "",
-  date: "",
-  time: "",
-  availableSeats: 1,
-};
-
-const currentLocationLabel = "Minha localização atual";
-const lastCreatedTripStorageKey = "iziline:lastCreatedTrip";
-const minAvailableSeats = 1;
-const maxAvailableSeats = 8;
-
-const currencyFormatter = new Intl.NumberFormat("pt-BR", {
-  style: "currency",
-  currency: "BRL",
-});
+const minAvailableSpots = 1;
+const maxAvailableSpots = 8;
 
 const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
   dateStyle: "long",
   timeStyle: "short",
 });
 
-const percentFormatter = new Intl.NumberFormat("pt-BR", {
-  style: "percent",
-  maximumFractionDigits: 0,
-});
+type Stage = "form" | "review" | "completed";
 
-type AddressFieldName = "origin" | "destination";
-type NewTripFormErrors = Partial<Record<keyof NewTripFormData | "departure", string>>;
-type NewTripStage = "form" | "costDetails" | "completed";
-
-type AddressSearchProps = {
-  id: AddressFieldName;
-  label: string;
-  placeholder: string;
-  value: string;
-  error?: string;
-  allowCurrentLocation?: boolean;
-  onChange: (field: AddressFieldName, value: string) => void;
+type CityPointValue = {
+  city: CitySearchResult | null;
+  location: Location | null;
 };
 
-type TripCostCardProps = {
-  tripData: NewTripFormData;
-  costEstimate: TripCostEstimate;
-  isSubmitting: boolean;
-  error?: string;
-  onBack: () => void;
-  onConfirm: () => void;
+type StopField = CityPointValue & { key: string };
+
+const emptyPoint: CityPointValue = { city: null, location: null };
+
+type FormErrors = {
+  origin?: string;
+  destination?: string;
+  date?: string;
+  time?: string;
+  departure?: string;
 };
 
-type CompletedTripCardProps = {
-  createdTrip: TripResponse | null;
-  onCreateAnother: () => void;
+type RoutePoint = {
+  role: "Origem" | "Parada" | "Destino";
+  cityLabel: string;
+  addressLabel: string;
 };
 
-function AddressSearch({
-  id,
-  label,
-  placeholder,
-  value,
-  error,
-  allowCurrentLocation = false,
-  onChange,
-}: AddressSearchProps) {
-  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
-  const [selectedSuggestion, setSelectedSuggestion] = useState("");
-  const [isLocating, setIsLocating] = useState(false);
-  const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (
-      !isSuggestionsOpen ||
-      value === selectedSuggestion ||
-      value === currentLocationLabel
-    ) {
-      return;
-    }
-
-    let shouldIgnore = false;
-
-    async function loadSuggestions() {
-      const suggestions = await getPossibleAddresses(value);
-
-      if (!shouldIgnore) {
-        setFilteredSuggestions(suggestions);
-      }
-    }
-
-    void loadSuggestions();
-
-    return () => {
-      shouldIgnore = true;
-    };
-  }, [isSuggestionsOpen, selectedSuggestion, value]);
-
-  const suggestionsToShow =
-    isSuggestionsOpen &&
-    value !== selectedSuggestion &&
-    value !== currentLocationLabel
-      ? filteredSuggestions
-      : [];
-
-  function handleInputChange(nextValue: string) {
-    setSelectedSuggestion("");
-    setIsSuggestionsOpen(true);
-    onChange(id, nextValue);
-  }
-
-  function selectSuggestion(suggestion: string) {
-    setSelectedSuggestion(suggestion);
-    setIsSuggestionsOpen(false);
-    onChange(id, suggestion);
-  }
-
-  function useCurrentLocation() {
-    if (!navigator.geolocation) {
-      onChange(id, currentLocationLabel);
-      setSelectedSuggestion(currentLocationLabel);
-      setIsSuggestionsOpen(false);
-      return;
-    }
-
-    setIsLocating(true);
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const latitude = position.coords.latitude.toFixed(5);
-        const longitude = position.coords.longitude.toFixed(5);
-        const currentLocation = `${currentLocationLabel} (${latitude}, ${longitude})`;
-
-        onChange(id, currentLocation);
-        setSelectedSuggestion(currentLocation);
-        setIsSuggestionsOpen(false);
-        setIsLocating(false);
-      },
-      () => {
-        onChange(id, currentLocationLabel);
-        setSelectedSuggestion(currentLocationLabel);
-        setIsSuggestionsOpen(false);
-        setIsLocating(false);
-      }
-    );
-  }
-
-  return (
-    <div className="address-search">
-      <label htmlFor={id}>{label}</label>
-
-      <div
-        className={
-          allowCurrentLocation
-            ? "address-search__input-row"
-            : "address-search__input-row address-search__input-row--single"
-        }
-      >
-        <input
-          id={id}
-          type="text"
-          placeholder={placeholder}
-          value={value}
-          aria-invalid={Boolean(error)}
-          aria-describedby={error ? `${id}-error` : undefined}
-          onChange={(event) => handleInputChange(event.target.value)}
-          autoComplete="off"
-        />
-
-        {allowCurrentLocation && (
-          <button type="button" onClick={useCurrentLocation}>
-            {isLocating ? "Localizando..." : "Localização atual"}
-          </button>
-        )}
-      </div>
-
-      {error && (
-        <span className="address-search__error" id={`${id}-error`}>
-          {error}
-        </span>
-      )}
-
-      {suggestionsToShow.length > 0 && (
-        <div className="address-search__suggestions">
-          {suggestionsToShow.map((suggestion) => (
-            <button
-              key={suggestion}
-              type="button"
-              onClick={() => selectSuggestion(suggestion)}
-            >
-              {suggestion}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TripCostCard({
-  tripData,
-  costEstimate,
-  isSubmitting,
-  error,
-  onBack,
-  onConfirm,
-}: TripCostCardProps) {
-  return (
-    <article className="trip-review-card" aria-labelledby="trip-cost-title">
-      <header className="trip-review-card__header">
-        <p className="trip-review-card__eyebrow">Resumo da viagem</p>
-        <h1 id="trip-cost-title">Confira os custos</h1>
-        <p>Revise os dados antes de confirmar o cadastro.</p>
-      </header>
-
-      <div className="trip-route" aria-label="Trajeto da viagem">
-        <div className="trip-route__point">
-          <span>Origem</span>
-          <strong>{tripData.origin}</strong>
-        </div>
-        <div className="trip-route__separator" aria-hidden="true" />
-        <div className="trip-route__point">
-          <span>Destino</span>
-          <strong>{tripData.destination}</strong>
-        </div>
-      </div>
-
-      <div className="trip-details-grid">
-        <div className="trip-detail">
-          <span>Saída</span>
-          <strong>{formatDeparture(tripData.date, tripData.time)}</strong>
-        </div>
-        <div className="trip-detail">
-          <span>Vagas</span>
-          <strong>{formatSeats(tripData.availableSeats)}</strong>
-        </div>
-        <div className="trip-detail">
-          <span>Rateio</span>
-          <strong>{formatOccupants(costEstimate.occupantsCount)}</strong>
-        </div>
-      </div>
-
-      <section className="trip-costs" aria-label="Cálculo de custos">
-        <div className="trip-costs__meta">
-          <span>
-            <small>Distância</small>
-            {formatDistance(costEstimate.distanceInKm)}
-          </span>
-          <span>
-            <small>Consumo</small>
-            {formatFuelEfficiency(costEstimate.fuelEfficiencyKmPerLiter)}
-          </span>
-          <span>
-            <small>Combustível</small>
-            {formatFuelPrice(costEstimate.fuelPricePerLiter)}
-          </span>
-        </div>
-
-        {costEstimate.breakdown.map((item) => (
-          <div className="trip-costs__row" key={item.label}>
-            <span>{item.label}</span>
-            <strong>{formatCurrency(item.amount)}</strong>
-          </div>
-        ))}
-
-        <div className="trip-costs__row">
-          <span>Taxa aplicada</span>
-          <strong>{percentFormatter.format(costEstimate.serviceFeeRate)}</strong>
-        </div>
-
-        <div className="trip-costs__total">
-          <div>
-            <span>Total estimado</span>
-            <small>Dividido entre {formatOccupants(costEstimate.occupantsCount)}</small>
-          </div>
-          <strong>{formatCurrency(costEstimate.totalCost)}</strong>
-        </div>
-
-        <div className="trip-costs__per-person">
-          <span>Valor por pessoa</span>
-          <strong>{formatCurrency(costEstimate.perPersonCost)}</strong>
-        </div>
-      </section>
-
-      {error && (
-        <span className="trip-review-card__error" role="alert">
-          {error}
-        </span>
-      )}
-
-      <div className="trip-review-card__actions">
-        <button
-          className="button button--secondary"
-          type="button"
-          onClick={onBack}
-          disabled={isSubmitting}
-        >
-          Voltar
-        </button>
-        <button
-          className="button button--primary"
-          type="button"
-          onClick={onConfirm}
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? "Confirmando..." : "Confirmar cadastro"}
-        </button>
-      </div>
-    </article>
-  );
-}
-
-function CompletedTripCard({
-  createdTrip,
-  onCreateAnother,
-}: CompletedTripCardProps) {
-  return (
-    <article className="trip-completed-card" aria-labelledby="trip-completed-title">
-      <div className="trip-completed-card__badge">OK</div>
-
-      <header className="trip-completed-card__header">
-        <p className="trip-review-card__eyebrow">Cadastro concluído</p>
-        <h1 id="trip-completed-title">Viagem cadastrada</h1>
-        <p>
-          {createdTrip
-            ? `A viagem de ${createdTrip.origin} para ${createdTrip.destination} foi salva.`
-            : "A viagem foi salva."}
-        </p>
-      </header>
-
-      {createdTrip && (
-        <div className="trip-completed-card__summary">
-          <span>Saída</span>
-          <strong>{formatDateTime(createdTrip.departure_at)}</strong>
-          <span>Vagas disponíveis</span>
-          <strong>{formatSeats(createdTrip.seats_available)}</strong>
-        </div>
-      )}
-
-      <div className="trip-completed-card__actions">
-        <button
-          className="button button--primary"
-          type="button"
-          onClick={onCreateAnother}
-        >
-          Cadastrar outra viagem
-        </button>
-      </div>
-    </article>
-  );
-}
-
-function formatCurrency(value: number) {
-  return currencyFormatter.format(value);
-}
-
-function formatDeparture(date: string, time: string) {
-  return formatDateTime(`${date}T${time}`);
+function formatSpots(value: number) {
+  return value === 1 ? "1 vaga" : `${value} vagas`;
 }
 
 function formatDateTime(value: string) {
   const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : dateTimeFormatter.format(date);
+}
 
-  if (Number.isNaN(date.getTime())) {
-    return value;
+function cityPointLabel(point: CityPointValue): RoutePoint["cityLabel"] {
+  return point.city?.label ?? "";
+}
+
+// Combobox de cidade + select de ponto de embarque/desembarque.
+// Refaz a busca de pontos sempre que a cidade selecionada muda.
+function CityPointField({
+  cityLabel,
+  pointLabel,
+  value,
+  error,
+  onChange,
+}: {
+  cityLabel: string;
+  pointLabel: string;
+  value: CityPointValue;
+  error?: string;
+  onChange: (value: CityPointValue) => void;
+}) {
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [isLoadingLocations, setIsLoadingLocations] = useState(false);
+  const cityId = value.city?.id;
+
+  useEffect(() => {
+    if (!cityId) {
+      return;
+    }
+
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setIsLoadingLocations(true);
+      }
+    });
+
+    getCityLocations(cityId)
+      .then((found) => {
+        if (!cancelled) {
+          setLocations(found);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLocations([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingLocations(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cityId]);
+
+  function handleLocationChange(locationId: string) {
+    const found = locations.find((location) => location.id === Number(locationId));
+    onChange({ ...value, location: found ?? null });
   }
 
-  return dateTimeFormatter.format(date);
+  const hasNoLocations = Boolean(value.city) && !isLoadingLocations && locations.length === 0;
+
+  return (
+    <div className="city-point-field">
+      <CitySearch
+        label={cityLabel}
+        selectedCity={value.city}
+        onSelect={(city) => onChange({ city, location: null })}
+      />
+
+      <div className="city-point-field__location">
+        <label htmlFor={`${cityLabel}-point`}>{pointLabel}</label>
+        <select
+          id={`${cityLabel}-point`}
+          value={value.location?.id ?? ""}
+          disabled={!value.city || isLoadingLocations || locations.length === 0}
+          aria-invalid={Boolean(error)}
+          onChange={(event) => handleLocationChange(event.target.value)}
+        >
+          <option value="" disabled>
+            {isLoadingLocations
+              ? "Carregando pontos…"
+              : hasNoLocations
+                ? "Nenhum ponto cadastrado nessa cidade"
+                : "Selecione um ponto"}
+          </option>
+          {locations.map((location) => (
+            <option key={location.id} value={location.id}>
+              {location.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {error && <span className="city-point-field__error">{error}</span>}
+    </div>
+  );
 }
 
-function formatDistance(value: number) {
-  return `${value.toLocaleString("pt-BR")} km`;
+// Trajeto ordenado (origem → paradas → destino) com conector vertical.
+function TripRouteList({ points }: { points: RoutePoint[] }) {
+  return (
+    <ol className="trip-route-list">
+      {points.map((point, index) => (
+        <li className="trip-route-list__item" key={`${point.role}-${index}`}>
+          <div className="trip-route-list__marker" aria-hidden="true">
+            <span className="trip-route-list__dot" />
+            {index < points.length - 1 && (
+              <span className="trip-route-list__line" />
+            )}
+          </div>
+          <div className="trip-route-list__content">
+            <span className="trip-route-list__role">{point.role}</span>
+            <strong>{point.cityLabel}</strong>
+            <span className="trip-route-list__address">{point.addressLabel}</span>
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
 }
 
-function formatFuelEfficiency(value: number) {
-  return `${value.toLocaleString("pt-BR")} km/L`;
+function stopsToRoutePoints(
+  origin: CityPointValue,
+  stops: StopField[],
+  destination: CityPointValue
+): RoutePoint[] {
+  return [
+    {
+      role: "Origem",
+      cityLabel: cityPointLabel(origin),
+      addressLabel: origin.location?.name ?? "",
+    },
+    ...stops.map((stop) => ({
+      role: "Parada" as const,
+      cityLabel: cityPointLabel(stop),
+      addressLabel: stop.location?.name ?? "",
+    })),
+    {
+      role: "Destino",
+      cityLabel: cityPointLabel(destination),
+      addressLabel: destination.location?.name ?? "",
+    },
+  ];
 }
 
-function formatFuelPrice(value: number) {
-  return `${formatCurrency(value)}/L`;
-}
-
-function formatSeats(value: number) {
-  return value === 1 ? "1 vaga" : `${value} vagas`;
-}
-
-function formatOccupants(value: number) {
-  return value === 1 ? "1 ocupante" : `${value} ocupantes`;
+function tripStopsToRoutePoints(stops: TripStop[]): RoutePoint[] {
+  return stops.map((stop, index) => ({
+    role:
+      index === 0 ? "Origem" : index === stops.length - 1 ? "Destino" : "Parada",
+    cityLabel: `${stop.location.city.name}-${stop.location.city.state}`,
+    addressLabel: stop.location.name,
+  }));
 }
 
 export function NewTripPage() {
-  const [formData, setFormData] = useState<NewTripFormData>(initialFormData);
-  const [errors, setErrors] = useState<NewTripFormErrors>({});
+  const stopKeyCounter = useRef(0);
+
+  const [stage, setStage] = useState<Stage>("form");
+  const [origin, setOrigin] = useState<CityPointValue>(emptyPoint);
+  const [destination, setDestination] = useState<CityPointValue>(emptyPoint);
+  const [stops, setStops] = useState<StopField[]>([]);
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  const [availableSpots, setAvailableSpots] = useState(1);
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [stopErrors, setStopErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [stage, setStage] = useState<NewTripStage>("form");
-  const [pendingTripData, setPendingTripData] = useState<NewTripFormData | null>(
-    null
-  );
-  const [costEstimate, setCostEstimate] = useState<TripCostEstimate | null>(
-    null
-  );
-  const [createdTrip, setCreatedTrip] = useState<TripResponse | null>(null);
-  const [costCalculationError, setCostCalculationError] = useState("");
-  const [confirmationError, setConfirmationError] = useState("");
+  const [submissionError, setSubmissionError] = useState("");
+  const [createdTrip, setCreatedTrip] = useState<TripDetail | null>(null);
 
-  function updateField<Field extends keyof NewTripFormData>(
-    field: Field,
-    value: NewTripFormData[Field]
-  ) {
-    setFormData((currentData) => ({
-      ...currentData,
-      [field]: value,
-    }));
-
-    setErrors((currentErrors) => ({
-      ...currentErrors,
-      [field]: undefined,
-      departure: field === "date" || field === "time" ? undefined : currentErrors.departure,
-    }));
-    setCostCalculationError("");
+  function addStop() {
+    stopKeyCounter.current += 1;
+    setStops((current) => [
+      ...current,
+      { key: `stop-${stopKeyCounter.current}`, ...emptyPoint },
+    ]);
   }
 
-  function updateAddressField(field: AddressFieldName, value: string) {
-    updateField(field, value);
+  function updateStop(key: string, value: CityPointValue) {
+    setStops((current) =>
+      current.map((stop) => (stop.key === key ? { ...stop, ...value } : stop))
+    );
+    setStopErrors((current) => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
   }
 
-  function decreaseSeats() {
-    setFormData((currentData) => ({
-      ...currentData,
-      availableSeats: Math.max(minAvailableSeats, currentData.availableSeats - 1),
-    }));
-
-    setErrors((currentErrors) => ({
-      ...currentErrors,
-      availableSeats: undefined,
-    }));
+  function removeStop(key: string) {
+    setStops((current) => current.filter((stop) => stop.key !== key));
+    setStopErrors((current) => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
   }
 
-  function increaseSeats() {
-    setFormData((currentData) => ({
-      ...currentData,
-      availableSeats: Math.min(maxAvailableSeats, currentData.availableSeats + 1),
-    }));
-
-    setErrors((currentErrors) => ({
-      ...currentErrors,
-      availableSeats: undefined,
-    }));
+  function moveStop(key: string, direction: -1 | 1) {
+    setStops((current) => {
+      const index = current.findIndex((stop) => stop.key === key);
+      const targetIndex = index + direction;
+      if (index < 0 || targetIndex < 0 || targetIndex >= current.length) {
+        return current;
+      }
+      const next = [...current];
+      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+      return next;
+    });
   }
 
-  function validateForm() {
-    const nextErrors: NewTripFormErrors = {};
+  function decreaseSpots() {
+    setAvailableSpots((current) => Math.max(minAvailableSpots, current - 1));
+  }
 
-    if (!formData.origin.trim()) {
-      nextErrors.origin = "Preencha o endereço de origem.";
+  function increaseSpots() {
+    setAvailableSpots((current) => Math.min(maxAvailableSpots, current + 1));
+  }
+
+  function validateForm(): boolean {
+    const nextErrors: FormErrors = {};
+    const nextStopErrors: Record<string, string> = {};
+
+    if (!origin.city) {
+      nextErrors.origin = "Escolha a cidade de origem.";
+    } else if (!origin.location) {
+      nextErrors.origin = "Escolha o ponto de embarque.";
     }
 
-    if (!formData.destination.trim()) {
-      nextErrors.destination = "Preencha o endereço de destino.";
+    if (!destination.city) {
+      nextErrors.destination = "Escolha a cidade de destino.";
+    } else if (!destination.location) {
+      nextErrors.destination = "Escolha o ponto de desembarque.";
     }
 
-    if (!formData.date) {
+    for (const stop of stops) {
+      if (!stop.city || !stop.location) {
+        nextStopErrors[stop.key] = "Escolha a cidade e o ponto desta parada.";
+      }
+    }
+
+    if (!date) {
       nextErrors.date = "Preencha a data da viagem.";
     }
 
-    if (!formData.time) {
+    if (!time) {
       nextErrors.time = "Preencha o horário de saída.";
     }
 
-    if (!formData.availableSeats || formData.availableSeats < minAvailableSeats) {
-      nextErrors.availableSeats = "Informe pelo menos 1 vaga disponível.";
-    } else if (formData.availableSeats > maxAvailableSeats) {
-      nextErrors.availableSeats = "Informe no máximo 8 vagas disponíveis.";
-    }
-
-    if (formData.date && formData.time) {
-      const departureDate = new Date(`${formData.date}T${formData.time}`);
-
-      if (departureDate <= new Date()) {
+    if (date && time) {
+      const departureDate = new Date(`${date}T${time}`);
+      if (Number.isNaN(departureDate.getTime()) || departureDate <= new Date()) {
         nextErrors.departure = "A data e o horário precisam ser futuros.";
       }
     }
 
     setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
+    setStopErrors(nextStopErrors);
+    return Object.keys(nextErrors).length === 0 && Object.keys(nextStopErrors).length === 0;
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
-
-    const normalizedTripData: NewTripFormData = {
-      ...formData,
-      origin: formData.origin.trim(),
-      destination: formData.destination.trim(),
-    };
-
-    setIsSubmitting(true);
-    setCostCalculationError("");
-    setConfirmationError("");
-
-    try {
-      const nextCostEstimate = await calculateTripCosts(normalizedTripData);
-
-      setPendingTripData(normalizedTripData);
-      setCostEstimate(nextCostEstimate);
-      setStage("costDetails");
-    } catch {
-      setCostCalculationError(
-        "Não foi possível calcular os custos da viagem. Tente novamente."
-      );
-    } finally {
-      setIsSubmitting(false);
+    if (validateForm()) {
+      setStage("review");
     }
   }
 
   function handleBackToForm() {
-    setConfirmationError("");
+    setSubmissionError("");
     setStage("form");
   }
 
-  async function handleConfirmTrip() {
-    if (!pendingTripData) {
+  async function handleConfirm() {
+    if (!origin.city || !origin.location || !destination.city || !destination.location) {
       return;
     }
 
+    const input: CreateTripInput = {
+      originCityId: origin.city.id,
+      originLocationId: origin.location.id,
+      destineCityId: destination.city.id,
+      destinationLocationId: destination.location.id,
+      intermediateLocationIds: stops
+        .map((stop) => stop.location?.id)
+        .filter((id): id is number => typeof id === "number"),
+      date,
+      time,
+      availableSpots,
+    };
+
     setIsSubmitting(true);
-    setConfirmationError("");
+    setSubmissionError("");
 
     try {
-      const nextCreatedTrip = await createTrip(pendingTripData);
-
-      window.sessionStorage.setItem(
-        lastCreatedTripStorageKey,
-        JSON.stringify(nextCreatedTrip)
-      );
-      setCreatedTrip(nextCreatedTrip);
+      const trip = await createTrip(input);
+      setCreatedTrip(trip);
       setStage("completed");
-    } catch {
-      setConfirmationError(
-        "Não foi possível confirmar a viagem. Tente novamente."
+    } catch (error) {
+      setSubmissionError(
+        error instanceof ApiError
+          ? error.message
+          : "Não foi possível publicar a viagem. Tente novamente."
       );
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  function handleCreateAnotherTrip() {
-    setFormData(initialFormData);
+  function handleCreateAnother() {
+    setOrigin(emptyPoint);
+    setDestination(emptyPoint);
+    setStops([]);
+    setDate("");
+    setTime("");
+    setAvailableSpots(1);
     setErrors({});
-    setPendingTripData(null);
-    setCostEstimate(null);
+    setStopErrors({});
+    setSubmissionError("");
     setCreatedTrip(null);
-    setCostCalculationError("");
-    setConfirmationError("");
     setStage("form");
   }
 
-  if (stage === "costDetails" && pendingTripData && costEstimate) {
+  function handleCancel() {
+    handleCreateAnother();
+  }
+
+  if (stage === "review") {
     return (
       <main className="new-trip-page">
-        <section className="new-trip-shell" aria-labelledby="trip-cost-title">
-          <div className="new-trip-copy">
-            <img
-              className="new-trip-copy__logo"
-              src={izilineLogo}
-              alt="Iziline"
-            />
-          </div>
+        <section className="new-trip-shell" aria-labelledby="review-title">
+          <img className="new-trip-page__logo" src={izilineLogo} alt="Iziline" />
 
-          <TripCostCard
-            tripData={pendingTripData}
-            costEstimate={costEstimate}
-            isSubmitting={isSubmitting}
-            error={confirmationError}
-            onBack={handleBackToForm}
-            onConfirm={handleConfirmTrip}
-          />
+          <article className="trip-card" aria-labelledby="review-title">
+            <header className="trip-card__header">
+              <h1 id="review-title">Confira antes de publicar</h1>
+              <p>Revise a rota e os dados da viagem.</p>
+            </header>
+
+            <TripRouteList points={stopsToRoutePoints(origin, stops, destination)} />
+
+            <div className="trip-card__meta">
+              <div>
+                <span>Saída</span>
+                <strong>{formatDateTime(`${date}T${time}`)}</strong>
+              </div>
+              <div>
+                <span>Vagas</span>
+                <strong>{formatSpots(availableSpots)}</strong>
+              </div>
+            </div>
+
+            {submissionError && (
+              <span className="trip-card__error" role="alert">
+                {submissionError}
+              </span>
+            )}
+
+            <div className="trip-card__actions">
+              <button
+                className="button button--secondary"
+                type="button"
+                onClick={handleBackToForm}
+                disabled={isSubmitting}
+              >
+                Voltar
+              </button>
+              <button
+                className="button button--primary"
+                type="button"
+                onClick={handleConfirm}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Publicando…" : "Publicar viagem"}
+              </button>
+            </div>
+          </article>
         </section>
       </main>
     );
   }
 
-  if (stage === "completed") {
+  if (stage === "completed" && createdTrip) {
     return (
       <main className="new-trip-page">
-        <section className="new-trip-shell" aria-labelledby="trip-completed-title">
-          <div className="new-trip-copy">
-            <img
-              className="new-trip-copy__logo"
-              src={izilineLogo}
-              alt="Iziline"
-            />
-          </div>
+        <section className="new-trip-shell" aria-labelledby="completed-title">
+          <img className="new-trip-page__logo" src={izilineLogo} alt="Iziline" />
 
-          <CompletedTripCard
-            createdTrip={createdTrip}
-            onCreateAnother={handleCreateAnotherTrip}
-          />
+          <article className="trip-card" aria-labelledby="completed-title">
+            <div className="trip-card__badge" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M3.5 8.5l3 3 6-7"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+
+            <header className="trip-card__header">
+              <h1 id="completed-title">Viagem publicada</h1>
+              <p>Sua carona já está visível para os passageiros da rota.</p>
+            </header>
+
+            <TripRouteList points={tripStopsToRoutePoints(createdTrip.stops)} />
+
+            <div className="trip-card__meta">
+              <div>
+                <span>Saída</span>
+                <strong>{formatDateTime(createdTrip.departure_time)}</strong>
+              </div>
+              <div>
+                <span>Vagas</span>
+                <strong>{formatSpots(createdTrip.available_spots)}</strong>
+              </div>
+            </div>
+
+            <div className="trip-card__actions trip-card__actions--stacked">
+              <button
+                className="button button--secondary"
+                type="button"
+                disabled
+                title="Em breve: gerenciar solicitações de reserva desta viagem."
+              >
+                Ver solicitações de reserva
+              </button>
+              <button
+                className="button button--primary"
+                type="button"
+                onClick={handleCreateAnother}
+              >
+                Cadastrar outra viagem
+              </button>
+            </div>
+          </article>
         </section>
       </main>
     );
@@ -619,118 +504,145 @@ export function NewTripPage() {
   return (
     <main className="new-trip-page">
       <section className="new-trip-shell" aria-labelledby="new-trip-title">
-        <div className="new-trip-copy">
-          <img
-            className="new-trip-copy__logo"
-            src={izilineLogo}
-            alt="Iziline"
-          />
-        </div>
+        <img className="new-trip-page__logo" src={izilineLogo} alt="Iziline" />
 
         <form className="new-trip-form" onSubmit={handleSubmit} noValidate>
           <header className="new-trip-form__header">
             <h1 id="new-trip-title">Cadastrar nova viagem</h1>
           </header>
 
-          <div className="new-trip-form__group">
-            <AddressSearch
-              id="origin"
-              label="Endereço de origem"
-              placeholder="Ex: Terminal Rodoviário Lucídio Portella"
-              value={formData.origin}
+          <div className="new-trip-form__section">
+            <CityPointField
+              cityLabel="Cidade de origem"
+              pointLabel="Ponto de embarque"
+              value={origin}
               error={errors.origin}
-              allowCurrentLocation
-              onChange={updateAddressField}
-            />
-
-            <AddressSearch
-              id="destination"
-              label="Endereço de destino"
-              placeholder="Ex: Terminal Rodoviário de Floriano"
-              value={formData.destination}
-              error={errors.destination}
-              onChange={updateAddressField}
+              onChange={setOrigin}
             />
           </div>
 
-          <div className="new-trip-form__grid">
+          {stops.length > 0 && (
+            <div className="new-trip-form__section new-trip-form__stops">
+              <span className="new-trip-form__stops-label">Paradas no caminho</span>
+              {stops.map((stop, index) => (
+                <div className="stop-row" key={stop.key}>
+                  <CityPointField
+                    cityLabel={`Cidade da parada ${index + 1}`}
+                    pointLabel="Ponto da parada"
+                    value={stop}
+                    error={stopErrors[stop.key]}
+                    onChange={(value) => updateStop(stop.key, value)}
+                  />
+                  <div className="stop-row__actions">
+                    <button
+                      type="button"
+                      onClick={() => moveStop(stop.key, -1)}
+                      disabled={index === 0}
+                      aria-label={`Mover parada ${index + 1} para cima`}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveStop(stop.key, 1)}
+                      disabled={index === stops.length - 1}
+                      aria-label={`Mover parada ${index + 1} para baixo`}
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      className="stop-row__remove"
+                      onClick={() => removeStop(stop.key)}
+                      aria-label={`Remover parada ${index + 1}`}
+                    >
+                      Remover
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button type="button" className="add-stop-button" onClick={addStop}>
+            + Adicionar parada (opcional)
+          </button>
+
+          <div className="new-trip-form__section">
+            <CityPointField
+              cityLabel="Cidade de destino"
+              pointLabel="Ponto de desembarque"
+              value={destination}
+              error={errors.destination}
+              onChange={setDestination}
+            />
+          </div>
+
+          <fieldset className="new-trip-form__grid">
+            <legend className="new-trip-form__legend">Data e horário de saída</legend>
+
             <FormField
               id="date"
-              label="Data da viagem"
+              label="Data"
               type="date"
-              value={formData.date}
+              value={date}
               error={errors.date}
-              onChange={(event) => updateField("date", event.target.value)}
+              onChange={(event) => setDate(event.target.value)}
             />
 
             <FormField
               id="time"
-              label="Horário de saída"
+              label="Horário"
               type="time"
-              value={formData.time}
+              value={time}
               error={errors.time}
-              onChange={(event) => updateField("time", event.target.value)}
+              onChange={(event) => setTime(event.target.value)}
             />
-          </div>
+          </fieldset>
 
           {errors.departure && (
-            <span className="new-trip-form__error">{errors.departure}</span>
-          )}
-
-          {costCalculationError && (
             <span className="new-trip-form__error" role="alert">
-              {costCalculationError}
+              {errors.departure}
             </span>
           )}
 
           <div className="seats-field">
             <div>
-              <label htmlFor="availableSeats">Vagas disponíveis</label>
+              <label htmlFor="availableSpots">Vagas disponíveis</label>
               <p>Escolha quantas pessoas podem viajar com você.</p>
-              {errors.availableSeats && (
-                <span className="seats-field__error">{errors.availableSeats}</span>
-              )}
             </div>
 
             <div className="seats-control">
-              <button
-                type="button"
-                onClick={decreaseSeats}
-                aria-label="Diminuir vagas"
-              >
-                -
+              <button type="button" onClick={decreaseSpots} aria-label="Diminuir vagas">
+                −
               </button>
               <input
-                id="availableSeats"
+                id="availableSpots"
                 type="number"
-                min={minAvailableSeats}
-                max={maxAvailableSeats}
-                value={formData.availableSeats}
-                aria-invalid={Boolean(errors.availableSeats)}
+                min={minAvailableSpots}
+                max={maxAvailableSpots}
+                value={availableSpots}
                 onChange={(event) =>
-                  updateField("availableSeats", Number(event.target.value))
+                  setAvailableSpots(
+                    Math.min(
+                      maxAvailableSpots,
+                      Math.max(minAvailableSpots, Number(event.target.value) || minAvailableSpots)
+                    )
+                  )
                 }
               />
-              <button
-                type="button"
-                onClick={increaseSeats}
-                aria-label="Aumentar vagas"
-              >
+              <button type="button" onClick={increaseSpots} aria-label="Aumentar vagas">
                 +
               </button>
             </div>
           </div>
 
           <div className="new-trip-form__actions">
-            <button className="button button--secondary" type="button">
+            <button className="button button--secondary" type="button" onClick={handleCancel}>
               Cancelar
             </button>
-            <button
-              className="button button--primary"
-              type="submit"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Cadastrando..." : "Cadastrar viagem"}
+            <button className="button button--primary" type="submit">
+              Continuar
             </button>
           </div>
         </form>
