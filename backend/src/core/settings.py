@@ -9,6 +9,7 @@ environ.Env.read_env(BASE_DIR / ".env")
 SECRET_KEY = env("SECRET_KEY")
 MAPBOX_ACCESS_TOKEN = env("MAPBOX_ACCESS_TOKEN")
 ROUTING_PROVIDER = env("ROUTING_PROVIDER", default="mapbox")
+PRICE_PER_KM = env("PRICE_PER_KM", default="1.00")
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -21,6 +22,7 @@ DEBUG = env.bool("DEBUG", default=False)
 
 MAPBOX_ACCESS_TOKEN = env("MAPBOX_ACCESS_TOKEN")
 ROUTING_PROVIDER = env("ROUTING_PROVIDER", default="mapbox")
+PRICE_PER_KM = env("PRICE_PER_KM", default="1.00")
 
 ALLOWED_HOSTS = []
 

@@ -9,9 +9,9 @@ nem conexão com a internet.
 
 from datetime import timedelta
 
-import pytest
-from django.contrib.auth import get_user_model
-from django.utils import timezone
+import pytest # type: ignore
+from django.contrib.auth import get_user_model # type: ignore
+from django.utils import timezone # type: ignore
 
 from trip.models import ProfileDriver, City, Location
 from trip.services import trip as trip_services
@@ -26,10 +26,18 @@ class FakeRoutingClient:
     """
 
     def get_route(self, coordinates):
+        leg_count = max(len(coordinates) - 1, 1)
+        distance_per_leg = 42.0 / leg_count
+        duration_per_leg = 60.0 / leg_count
+        legs = [
+            {"distance_km": distance_per_leg, "duration_min": duration_per_leg}
+            for _ in range(len(coordinates) - 1)
+        ]
         return RouteResult(
             distance_km=42.0,
             duration_min=60.0,
             geometry={"type": "LineString", "coordinates": coordinates},
+            legs=legs,
         )
 
 

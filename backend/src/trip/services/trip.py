@@ -8,17 +8,22 @@ grava algo no banco mora aqui.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import timedelta
+from decimal import Decimal
 
+from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.utils import timezone
 
+from core.exceptions import ApplicationError
 from trip.models import Trip, TripStop, Booking, ProfileDriver, Location
+from trip.models import TripCost
 from trip import selectors
 from trip.services.routing import get_routing_client, RoutingError
 
 
-class TripServiceError(Exception):
+class TripServiceError(ApplicationError):
     """Erro de regra de negócio (não de infraestrutura)."""
 
 
@@ -26,6 +31,9 @@ class TripServiceError(Exception):
 class StopInput:
     location_id: int
     order: int
+
+
+TRIP_EDITABLE_STATUSES = {Trip.Status.OPEN, Trip.Status.FULL}
 
 
 # ---------------------------------------------------------------------------
@@ -65,6 +73,12 @@ def create_trip_cost(trip: Trip) -> TripCost:
     Não é chamado de novo depois disso; o custo não muda mesmo que a
     rota seja recalculada por causa de bookings confirmados.
     """
+    if trip.total_distance_km is None:
+        raise TripServiceError("A viagem precisa ter a rota calculada antes de fixar o custo.")
+
+    if TripCost.objects.filter(trip=trip).exists():
+        raise TripServiceError("Essa viagem já possui um custo fixado.")
+
     price_per_km = Decimal(str(settings.PRICE_PER_KM))
     distance_km = Decimal(str(trip.total_distance_km))
     total_cost = (price_per_km * distance_km).quantize(Decimal("0.01"))
@@ -130,6 +144,7 @@ def create_trip(
     ])
 
     recalculate_route(trip)
+    create_trip_cost(trip)
     return trip
 
 
@@ -201,6 +216,9 @@ def accept_booking_request(*, booking_id: int, driver_profile_id: int) -> Bookin
     if trip.driver_id != driver_profile_id:
         raise PermissionDenied("Essa viagem não pertence a este motorista.")
 
+    if trip.status not in TRIP_EDITABLE_STATUSES:
+        raise TripServiceError("Só é possível decidir requests antes de a viagem começar.")
+
     if booking.status != Booking.Status.PENDING:
         raise TripServiceError("Só é possível aceitar requests pendentes.")
 
@@ -226,6 +244,9 @@ def reject_booking_request(*, booking_id: int, driver_profile_id: int) -> Bookin
 
     if booking.trip.driver_id != driver_profile_id:
         raise PermissionDenied("Essa viagem não pertence a este motorista.")
+
+    if booking.trip.status not in TRIP_EDITABLE_STATUSES:
+        raise TripServiceError("Só é possível decidir requests antes de a viagem começar.")
 
     if booking.status != Booking.Status.PENDING:
         raise TripServiceError("Só é possível recusar requests pendentes.")
@@ -259,6 +280,9 @@ def update_order(
     """
     trip = Trip.objects.get(pk=trip_id, driver_id=driver_profile_id)
 
+    if trip.status not in TRIP_EDITABLE_STATUSES:
+        raise TripServiceError("Só é possível reordenar paradas antes de a viagem começar.")
+
     stops_by_id = {stop.id: stop for stop in trip.stops.all()}
     new_orders = [order for _, order in stop_orders]
 
@@ -285,4 +309,54 @@ def new_map_order(*, trip_id: int, driver_profile_id: int) -> Trip:
     reordenou e quer ver o novo mapa".
     """
     trip = Trip.objects.get(pk=trip_id, driver_id=driver_profile_id)
+
+    if trip.status not in TRIP_EDITABLE_STATUSES:
+        raise TripServiceError("Só é possível recalcular a rota antes de a viagem começar.")
+
     return recalculate_route(trip)
+
+
+@transaction.atomic
+def start_trip(*, trip_id: int, driver_profile_id: int) -> Trip:
+    trip = Trip.objects.select_for_update().get(pk=trip_id)
+
+    if trip.driver_id != driver_profile_id:
+        raise PermissionDenied("Essa viagem não pertence a este motorista.")
+
+    if trip.status not in TRIP_EDITABLE_STATUSES:
+        raise TripServiceError("Só é possível iniciar viagens abertas ou lotadas.")
+
+    if not Booking.objects.filter(trip=trip, status=Booking.Status.CONFIRMED).exists():
+        raise TripServiceError("Só é possível iniciar a viagem com pelo menos um passageiro confirmado.")
+
+    now = timezone.now()
+    start_window = trip.departure_time - timedelta(hours=1)
+    end_window = trip.departure_time + timedelta(hours=1)
+    if now < start_window or now > end_window:
+        raise TripServiceError("A viagem só pode ser iniciada entre 1 hora antes e 1 hora depois da partida.")
+
+    trip.status = Trip.Status.IN_PROGRESS
+    trip.started_at = now
+    trip.save(update_fields=["status", "started_at", "updated_at"])
+    return trip
+
+
+@transaction.atomic
+def finish_trip(*, trip_id: int, driver_profile_id: int) -> Trip:
+    trip = Trip.objects.select_for_update().get(pk=trip_id)
+
+    if trip.driver_id != driver_profile_id:
+        raise PermissionDenied("Essa viagem não pertence a este motorista.")
+
+    if trip.status != Trip.Status.IN_PROGRESS:
+        raise TripServiceError("Só é possível finalizar viagens em andamento.")
+
+    now = timezone.now()
+    trip.status = Trip.Status.FINISHED
+    trip.finished_at = now
+    trip.save(update_fields=["status", "finished_at", "updated_at"])
+
+    # Hook futuro: disparar criação das avaliações (#79).
+    # Hook futuro: fechar rateio/cobrança final da viagem (#70/#124).
+
+    return trip

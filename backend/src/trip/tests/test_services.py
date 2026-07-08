@@ -3,7 +3,7 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
-from trip.models import Trip, Booking
+from trip.models import Trip, Booking, TripCost
 from trip.services import trip as trip_services
 from trip.services.trip import TripServiceError
 
@@ -17,8 +17,9 @@ pytestmark = pytest.mark.django_db
 class TestCreateTrip:
     def test_creates_trip_with_two_stops_and_calculates_route(
         self, driver_profile, city_origin, city_destination,
-        origin_location, destination_location, future_departure_time,
+        origin_location, destination_location, future_departure_time, settings,
     ):
+        settings.PRICE_PER_KM = "1.50"
         trip = trip_services.create_trip(
             driver=driver_profile,
             origin_city_id=city_origin.id,
@@ -35,6 +36,10 @@ class TestCreateTrip:
         # vem do FakeRoutingClient (conftest.py), não do Mapbox real
         assert trip.total_distance_km == 42.0
         assert trip.line_trip is not None
+        assert TripCost.objects.filter(trip=trip).exists()
+        assert trip.cost.price_per_km == pytest.approx(1.5)
+        assert trip.cost.distance_km_snapshot == 42.0
+        assert trip.cost.total_cost == pytest.approx(63.0)
 
     def test_includes_intermediate_stops_in_order(
         self, driver_profile, city_origin, city_destination,
@@ -212,6 +217,14 @@ class TestAcceptRejectBookingRequest:
         with pytest.raises(TripServiceError):
             trip_services.accept_booking_request(booking_id=booking.id, driver_profile_id=driver_profile.id)
 
+    def test_cannot_accept_after_trip_started(self, passenger_user, driver_profile, open_trip):
+        booking = self._pending_booking(passenger_user, open_trip)
+        open_trip.status = Trip.Status.IN_PROGRESS
+        open_trip.save(update_fields=["status"])
+
+        with pytest.raises(TripServiceError):
+            trip_services.accept_booking_request(booking_id=booking.id, driver_profile_id=driver_profile.id)
+
     def test_reject_marks_booking_as_rejected(self, passenger_user, driver_profile, open_trip):
         booking = self._pending_booking(passenger_user, open_trip)
 
@@ -220,6 +233,29 @@ class TestAcceptRejectBookingRequest:
         )
 
         assert rejected.status == Booking.Status.REJECTED
+
+    def test_cannot_reject_after_trip_started(self, passenger_user, driver_profile, open_trip):
+        booking = self._pending_booking(passenger_user, open_trip)
+        open_trip.status = Trip.Status.IN_PROGRESS
+        open_trip.save(update_fields=["status"])
+
+        with pytest.raises(TripServiceError):
+            trip_services.reject_booking_request(booking_id=booking.id, driver_profile_id=driver_profile.id)
+
+    def test_trip_cost_does_not_change_after_accept_booking(
+        self, passenger_user, driver_profile, open_trip
+    ):
+        booking = self._pending_booking(passenger_user, open_trip)
+        original_total_cost = open_trip.cost.total_cost
+        original_cost_id = open_trip.cost.id
+
+        trip_services.accept_booking_request(
+            booking_id=booking.id, driver_profile_id=driver_profile.id
+        )
+
+        open_trip.refresh_from_db()
+        assert open_trip.cost.id == original_cost_id
+        assert open_trip.cost.total_cost == original_total_cost
 
 
 # ---------------------------------------------------------------------------
@@ -249,3 +285,120 @@ class TestCancelBookingRequest:
 
         with pytest.raises(TripServiceError):
             trip_services.cancel_booking_request(booking_id=booking.id, passenger=passenger_user)
+
+
+class TestTripCost:
+    def test_create_trip_cost_rejects_duplicate_cost(self, open_trip):
+        with pytest.raises(TripServiceError):
+            trip_services.create_trip_cost(open_trip)
+
+    def test_trip_cost_does_not_change_after_recalculate_route(
+        self, driver_profile, open_trip
+    ):
+        original_total_cost = open_trip.cost.total_cost
+        original_cost_id = open_trip.cost.id
+
+        trip_services.new_map_order(trip_id=open_trip.id, driver_profile_id=driver_profile.id)
+
+        open_trip.refresh_from_db()
+        assert open_trip.cost.id == original_cost_id
+        assert open_trip.cost.total_cost == original_total_cost
+
+
+class TestTripLifecycle:
+    def test_start_trip_sets_in_progress_and_started_at(
+        self, passenger_user, driver_profile, open_trip
+    ):
+        stops = list(open_trip.stops.order_by("order"))
+        booking = trip_services.create_booking_request(
+            passenger=passenger_user,
+            trip_id=open_trip.id,
+            pickup_stop_id=stops[0].id,
+            dropoff_stop_id=stops[-1].id,
+        )
+        trip_services.accept_booking_request(booking_id=booking.id, driver_profile_id=driver_profile.id)
+        open_trip.departure_time = timezone.now() + timedelta(minutes=30)
+        open_trip.save(update_fields=["departure_time"])
+
+        started = trip_services.start_trip(trip_id=open_trip.id, driver_profile_id=driver_profile.id)
+
+        assert started.status == Trip.Status.IN_PROGRESS
+        assert started.started_at is not None
+
+    def test_start_trip_accepts_full_trip(
+        self, passenger_user, driver_profile, django_user_model, open_trip
+    ):
+        stops = list(open_trip.stops.order_by("order"))
+        for user in [passenger_user, django_user_model.objects.create_user(username="p3", password="x")]:
+            booking = trip_services.create_booking_request(
+                passenger=user,
+                trip_id=open_trip.id,
+                pickup_stop_id=stops[0].id,
+                dropoff_stop_id=stops[-1].id,
+            )
+            trip_services.accept_booking_request(booking_id=booking.id, driver_profile_id=driver_profile.id)
+        open_trip.refresh_from_db()
+        open_trip.departure_time = timezone.now()
+        open_trip.save(update_fields=["departure_time"])
+
+        started = trip_services.start_trip(trip_id=open_trip.id, driver_profile_id=driver_profile.id)
+
+        assert started.status == Trip.Status.IN_PROGRESS
+
+    def test_start_trip_rejects_without_confirmed_booking(self, driver_profile, open_trip):
+        open_trip.departure_time = timezone.now()
+        open_trip.save(update_fields=["departure_time"])
+
+        with pytest.raises(TripServiceError):
+            trip_services.start_trip(trip_id=open_trip.id, driver_profile_id=driver_profile.id)
+
+    def test_start_trip_rejects_outside_time_window(
+        self, passenger_user, driver_profile, open_trip
+    ):
+        stops = list(open_trip.stops.order_by("order"))
+        booking = trip_services.create_booking_request(
+            passenger=passenger_user,
+            trip_id=open_trip.id,
+            pickup_stop_id=stops[0].id,
+            dropoff_stop_id=stops[-1].id,
+        )
+        trip_services.accept_booking_request(booking_id=booking.id, driver_profile_id=driver_profile.id)
+
+        with pytest.raises(TripServiceError):
+            trip_services.start_trip(trip_id=open_trip.id, driver_profile_id=driver_profile.id)
+
+    def test_finish_trip_sets_finished_and_finished_at(
+        self, passenger_user, driver_profile, open_trip
+    ):
+        stops = list(open_trip.stops.order_by("order"))
+        booking = trip_services.create_booking_request(
+            passenger=passenger_user,
+            trip_id=open_trip.id,
+            pickup_stop_id=stops[0].id,
+            dropoff_stop_id=stops[-1].id,
+        )
+        trip_services.accept_booking_request(booking_id=booking.id, driver_profile_id=driver_profile.id)
+        open_trip.departure_time = timezone.now()
+        open_trip.save(update_fields=["departure_time"])
+        trip_services.start_trip(trip_id=open_trip.id, driver_profile_id=driver_profile.id)
+
+        finished = trip_services.finish_trip(trip_id=open_trip.id, driver_profile_id=driver_profile.id)
+
+        assert finished.status == Trip.Status.FINISHED
+        assert finished.finished_at is not None
+
+    def test_finish_trip_rejects_when_not_in_progress(self, driver_profile, open_trip):
+        with pytest.raises(TripServiceError):
+            trip_services.finish_trip(trip_id=open_trip.id, driver_profile_id=driver_profile.id)
+
+    def test_reorder_rejects_after_trip_started(self, driver_profile, open_trip):
+        stops = list(open_trip.stops.order_by("order"))
+        open_trip.status = Trip.Status.IN_PROGRESS
+        open_trip.save(update_fields=["status"])
+
+        with pytest.raises(TripServiceError):
+            trip_services.update_order(
+                trip_id=open_trip.id,
+                driver_profile_id=driver_profile.id,
+                stop_orders=[(stops[0].id, 0), (stops[-1].id, 1)],
+            )
