@@ -119,9 +119,6 @@ export function TripsListPage() {
           <div className="trips-list-empty">
             <strong>Você ainda não cadastrou viagens</strong>
             <p>Publique sua primeira carona e ela aparece aqui.</p>
-            <Link to="/viagens/nova" className="button button--primary">
-              Cadastrar viagem
-            </Link>
           </div>
         )}
       </section>
