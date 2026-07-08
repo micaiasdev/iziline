@@ -1,5 +1,9 @@
 """
+<<<<<<< HEAD
+services.py
+=======
 services/trip.py
+>>>>>>> origin/dev
 
 Funções de ESCRITA sobre o domínio de viagens — toda regra de negócio que
 grava algo no banco mora aqui.
@@ -13,6 +17,11 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.utils import timezone
 
+<<<<<<< HEAD
+from trip.models import Trip, TripStop, Booking, ProfileDriver, Location
+from trip import selectors
+from trip.services.routing import get_routing_client, RoutingError
+=======
 from ..models import Trip, TripStop, Booking, ProfileDriver, Location
 from .. import selectors
 from .routing import get_routing_client, RoutingError
@@ -29,6 +38,7 @@ __all__ = [
     "update_order",
     "new_map_order",
 ]
+>>>>>>> origin/dev
 
 
 class TripServiceError(Exception):
@@ -40,6 +50,8 @@ class StopInput:
     location_id: int
     order: int
 
+<<<<<<< HEAD
+=======
 
 # ---------------------------------------------------------------------------
 # Recálculo de rota — usado por create_trip, accept_booking_request e
@@ -47,6 +59,7 @@ class StopInput:
 # line_trip/total_distance_km/total_duration_min.
 # ---------------------------------------------------------------------------
 
+>>>>>>> origin/dev
 def recalculate_route(trip: Trip) -> Trip:
     route_stops = list(selectors.get_route_stops(trip))
     if len(route_stops) < 2:
