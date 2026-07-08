@@ -54,6 +54,7 @@ class Trip(models.Model):
 		CANCELLED = "cancelled", "Cancelada"
 
 	status = models.CharField(max_length=16, choices=Status.choices, default=Status.OPEN)
+<<<<<<< HEAD
 
 
 class TripStop(models.Model):
@@ -61,23 +62,46 @@ class TripStop(models.Model):
 	location = models.ForeignKey('trip.Location', on_delete=models.SET_NULL, null=True)
 	order = models.IntegerField(
 	)
+=======
+ 
+
+class TripStop(models.Model):
+	trip = models.ForeignKey('trip.Trip', on_delete=models.CASCADE,
+													related_name='stops')
+	location = models.ForeignKey('trip.Location', on_delete=models.SET_NULL, null=True)
+	order = models.IntegerField(
+	)
+	#avaliar a questão de uma trip stop fixa, 0 ou 1, as fixas seriam a do começo da viagem
+>>>>>>> origin/dev
 	class Meta:
 		unique_together = ['trip', 'location']
 		
 
 class Booking(models.Model):
+<<<<<<< HEAD
   
 	class Status(models.TextChoices):
 		PENDING = "pending", "Aguardando motorista"
 		CONFIRMED = "confirmed", "Confirmada"
 		REJECTED = "rejected", "Recusada"
 		CANCELLED = "cancelled", "Cancelada pelo passageiro"
+=======
+>>>>>>> origin/dev
 
 	trip = models.ForeignKey(Trip, related_name="bookings", on_delete=models.CASCADE)
 	passenger = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="bookings", on_delete=models.CASCADE,)
 	pickup_stop = models.ForeignKey(TripStop, related_name="pickup_bookings", on_delete=models.PROTECT)
 	dropoff_stop = models.ForeignKey(TripStop, related_name="dropoff_bookings", on_delete=models.PROTECT)
+<<<<<<< HEAD
 	seats_requested = models.PositiveSmallIntegerField(default=1)
+=======
+	
+	class Status(models.TextChoices):
+		PENDING = "pending", "Aguardando motorista"
+		CONFIRMED = "confirmed", "Confirmada"
+		REJECTED = "rejected", "Recusada"
+		CANCELLED = "cancelled", "Cancelada pelo passageiro"
+>>>>>>> origin/dev
 	status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
 
 	created_at = models.DateTimeField(auto_now_add=True)

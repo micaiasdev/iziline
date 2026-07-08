@@ -1,5 +1,9 @@
 """
+<<<<<<< HEAD
 services.py
+=======
+services/trip.py
+>>>>>>> origin/dev
 
 Funções de ESCRITA sobre o domínio de viagens — toda regra de negócio que
 grava algo no banco mora aqui.
@@ -13,9 +17,28 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.utils import timezone
 
+<<<<<<< HEAD
 from trip.models import Trip, TripStop, Booking, ProfileDriver, Location
 from trip import selectors
 from trip.services.routing import get_routing_client, RoutingError
+=======
+from ..models import Trip, TripStop, Booking, ProfileDriver, Location
+from .. import selectors
+from .routing import get_routing_client, RoutingError
+
+__all__ = [
+    "TripServiceError",
+    "StopInput",
+    "recalculate_route",
+    "create_trip",
+    "create_booking_request",
+    "cancel_booking_request",
+    "accept_booking_request",
+    "reject_booking_request",
+    "update_order",
+    "new_map_order",
+]
+>>>>>>> origin/dev
 
 
 class TripServiceError(Exception):
@@ -27,6 +50,16 @@ class StopInput:
     location_id: int
     order: int
 
+<<<<<<< HEAD
+=======
+
+# ---------------------------------------------------------------------------
+# Recálculo de rota — usado por create_trip, accept_booking_request e
+# new_map_order. Única função que fala com o routing.py e grava
+# line_trip/total_distance_km/total_duration_min.
+# ---------------------------------------------------------------------------
+
+>>>>>>> origin/dev
 def recalculate_route(trip: Trip) -> Trip:
     route_stops = list(selectors.get_route_stops(trip))
     if len(route_stops) < 2:
@@ -114,7 +147,6 @@ def create_booking_request(
     trip_id: int,
     pickup_stop_id: int,
     dropoff_stop_id: int,
-    seats_requested: int = 1,
 ) -> Booking:
     trip = Trip.objects.select_for_update().get(pk=trip_id)
 
@@ -127,16 +159,14 @@ def create_booking_request(
     if pickup_stop.order >= dropoff_stop.order:
         raise TripServiceError("O ponto de embarque precisa vir antes do ponto de desembarque.")
 
-    available = selectors.get_available_seats(trip)
-    if seats_requested > available:
-        raise TripServiceError(f"Só há {available} vaga(s) disponível(is) nesta viagem.")
+    if selectors.get_available_seats(trip) < 1:
+        raise TripServiceError("Não há vagas disponíveis nesta viagem.")
 
     return Booking.objects.create(
         trip=trip,
         passenger=passenger,
         pickup_stop=pickup_stop,
         dropoff_stop=dropoff_stop,
-        seats_requested=seats_requested,
         status=Booking.Status.PENDING,
     )
 
@@ -163,7 +193,7 @@ def cancel_booking_request(*, booking_id: int, passenger) -> Booking:
 
 
 # ---------------------------------------------------------------------------
-# Aceitar request de booking
+# Aceitar / recusar request de booking
 # ---------------------------------------------------------------------------
 
 @transaction.atomic
@@ -177,9 +207,8 @@ def accept_booking_request(*, booking_id: int, driver_profile_id: int) -> Bookin
     if booking.status != Booking.Status.PENDING:
         raise TripServiceError("Só é possível aceitar requests pendentes.")
 
-    available = selectors.get_available_seats(trip)
-    if booking.seats_requested > available:
-        raise TripServiceError("Não há mais vagas suficientes pra aceitar este request.")
+    if selectors.get_available_seats(trip) < 1:
+        raise TripServiceError("Não há mais vagas disponíveis pra aceitar este request.")
 
     booking.status = Booking.Status.CONFIRMED
     booking.confirmed_at = timezone.now()
@@ -194,8 +223,23 @@ def accept_booking_request(*, booking_id: int, driver_profile_id: int) -> Bookin
     return booking
 
 
+@transaction.atomic
+def reject_booking_request(*, booking_id: int, driver_profile_id: int) -> Booking:
+    booking = Booking.objects.select_for_update().select_related("trip").get(pk=booking_id)
+
+    if booking.trip.driver_id != driver_profile_id:
+        raise PermissionDenied("Essa viagem não pertence a este motorista.")
+
+    if booking.status != Booking.Status.PENDING:
+        raise TripServiceError("Só é possível recusar requests pendentes.")
+
+    booking.status = Booking.Status.REJECTED
+    booking.save(update_fields=["status"])
+    return booking
+
+
 # ---------------------------------------------------------------------------
-# Reordenar paradas
+# Reordenar paradas / recalcular mapa
 # ---------------------------------------------------------------------------
 
 @transaction.atomic
@@ -235,10 +279,6 @@ def update_order(
 
     TripStop.objects.bulk_update(updated_stops, ["order"])
 
-
-# ---------------------------------------------------------------------------
-# Recalcular/exibir o mapa após reordenar
-# ---------------------------------------------------------------------------
 
 def new_map_order(*, trip_id: int, driver_profile_id: int) -> Trip:
     """
