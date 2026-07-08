@@ -1,6 +1,8 @@
 import pytest
+from django.utils import timezone
 from rest_framework.test import APIClient
 
+from trip.models import Trip
 from trip.services import trip as trip_services
 
 
@@ -70,3 +72,68 @@ class TestTripFareSplitApi:
             booking_two.id,
         }
         assert {item["amount"] for item in response.data["split"]} == {"21.00"}
+
+
+class TestTripLifecycleApi:
+    def test_start_trip_returns_updated_trip(
+        self, api_client, passenger_user, driver_user, driver_profile, open_trip
+    ):
+        stops = list(open_trip.stops.order_by("order"))
+        booking = trip_services.create_booking_request(
+            passenger=passenger_user,
+            trip_id=open_trip.id,
+            pickup_stop_id=stops[0].id,
+            dropoff_stop_id=stops[-1].id,
+        )
+        trip_services.accept_booking_request(booking_id=booking.id, driver_profile_id=driver_profile.id)
+        open_trip.departure_time = timezone.now()
+        open_trip.save(update_fields=["departure_time"])
+        api_client.force_authenticate(user=driver_user)
+
+        response = api_client.post(f"/api/trips/{open_trip.id}/start/")
+
+        assert response.status_code == 200
+        assert response.data["status"] == Trip.Status.IN_PROGRESS
+        assert response.data["started_at"] is not None
+
+    def test_start_trip_returns_400_when_no_confirmed_booking(
+        self, api_client, driver_user, open_trip
+    ):
+        open_trip.departure_time = timezone.now()
+        open_trip.save(update_fields=["departure_time"])
+        api_client.force_authenticate(user=driver_user)
+
+        response = api_client.post(f"/api/trips/{open_trip.id}/start/")
+
+        assert response.status_code == 400
+
+    def test_finish_trip_returns_updated_trip(
+        self, api_client, passenger_user, driver_user, driver_profile, open_trip
+    ):
+        stops = list(open_trip.stops.order_by("order"))
+        booking = trip_services.create_booking_request(
+            passenger=passenger_user,
+            trip_id=open_trip.id,
+            pickup_stop_id=stops[0].id,
+            dropoff_stop_id=stops[-1].id,
+        )
+        trip_services.accept_booking_request(booking_id=booking.id, driver_profile_id=driver_profile.id)
+        open_trip.departure_time = timezone.now()
+        open_trip.save(update_fields=["departure_time"])
+        trip_services.start_trip(trip_id=open_trip.id, driver_profile_id=driver_profile.id)
+        api_client.force_authenticate(user=driver_user)
+
+        response = api_client.post(f"/api/trips/{open_trip.id}/finish/")
+
+        assert response.status_code == 200
+        assert response.data["status"] == Trip.Status.FINISHED
+        assert response.data["finished_at"] is not None
+
+    def test_finish_trip_returns_400_when_not_in_progress(
+        self, api_client, driver_user, open_trip
+    ):
+        api_client.force_authenticate(user=driver_user)
+
+        response = api_client.post(f"/api/trips/{open_trip.id}/finish/")
+
+        assert response.status_code == 400

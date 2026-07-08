@@ -21,6 +21,8 @@ from .services import (
   cancel_booking_request,
   accept_booking_request,
   reject_booking_request,
+  start_trip,
+  finish_trip,
   update_order,
   new_map_order,
 )
@@ -71,7 +73,7 @@ class TripDetailOutputSerializer(serializers.ModelSerializer):
       "id", "driver", "origin_city", "destine_city",
       "departure_time", "available_spots", "available_seats",
       "status", "line_trip", "total_distance_km", "total_duration_min",
-      "stops", "created_at", "updated_at",
+      "stops", "started_at", "finished_at", "created_at", "updated_at",
     ]
 
   def get_available_seats(self, trip: Trip) -> int:
@@ -265,6 +267,26 @@ class TripRecalculateRouteApi(APIView):
     def post(self, request, trip_id: int):
         driver = _get_driver_profile(request)
         trip = new_map_order(trip_id=trip_id, driver_profile_id=driver.id)
+        return Response(self.OutputSerializer(trip).data)
+
+
+class TripStartApi(APIView):
+    permission_classes = [AllowAny]
+    OutputSerializer = TripDetailOutputSerializer
+
+    def post(self, request, trip_id: int):
+        driver = _get_driver_profile(request)
+        trip = start_trip(trip_id=trip_id, driver_profile_id=driver.id)
+        return Response(self.OutputSerializer(trip).data)
+
+
+class TripFinishApi(APIView):
+    permission_classes = [AllowAny]
+    OutputSerializer = TripDetailOutputSerializer
+
+    def post(self, request, trip_id: int):
+        driver = _get_driver_profile(request)
+        trip = finish_trip(trip_id=trip_id, driver_profile_id=driver.id)
         return Response(self.OutputSerializer(trip).data)
 
 
