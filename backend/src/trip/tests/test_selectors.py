@@ -57,3 +57,53 @@ class TestGetTripsOpened:
         ))
         # open_trip parte amanhã (fixture future_departure_time), fora dessa janela
         assert open_trip not in results
+
+
+class TestGetFareSplit:
+    def test_returns_empty_list_when_no_confirmed_bookings(self, open_trip):
+        assert selectors.get_fare_split(open_trip) == []
+
+    def test_splits_cost_for_confirmed_passengers(self, django_user_model, driver_profile, open_trip):
+        stops = list(open_trip.stops.order_by("order"))
+        passenger_one = django_user_model.objects.create_user(username="split1", password="x")
+        passenger_two = django_user_model.objects.create_user(username="split2", password="x")
+
+        booking_one = trip_services.create_booking_request(
+            passenger=passenger_one,
+            trip_id=open_trip.id,
+            pickup_stop_id=stops[0].id,
+            dropoff_stop_id=stops[-1].id,
+        )
+        booking_two = trip_services.create_booking_request(
+            passenger=passenger_two,
+            trip_id=open_trip.id,
+            pickup_stop_id=stops[0].id,
+            dropoff_stop_id=stops[-1].id,
+        )
+
+        trip_services.accept_booking_request(booking_id=booking_one.id, driver_profile_id=driver_profile.id)
+        trip_services.accept_booking_request(booking_id=booking_two.id, driver_profile_id=driver_profile.id)
+
+        open_trip.refresh_from_db()
+        split = selectors.get_fare_split(open_trip)
+
+        assert len(split) == 2
+        assert {item["booking_id"] for item in split} == {booking_one.id, booking_two.id}
+        assert {str(item["amount"]) for item in split} == {"21.00"}
+
+    def test_raises_when_route_legs_are_inconsistent(self, passenger_user, driver_profile, open_trip):
+        stops = list(open_trip.stops.order_by("order"))
+        booking = trip_services.create_booking_request(
+            passenger=passenger_user,
+            trip_id=open_trip.id,
+            pickup_stop_id=stops[0].id,
+            dropoff_stop_id=stops[-1].id,
+        )
+        trip_services.accept_booking_request(booking_id=booking.id, driver_profile_id=driver_profile.id)
+
+        open_trip.refresh_from_db()
+        open_trip.route_legs = []
+        open_trip.save(update_fields=["route_legs"])
+
+        with pytest.raises(ValueError):
+            selectors.get_fare_split(open_trip)

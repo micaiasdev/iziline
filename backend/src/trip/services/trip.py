@@ -8,17 +8,21 @@ grava algo no banco mora aqui.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 
+from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.utils import timezone
 
+from core.exceptions import ApplicationError
 from trip.models import Trip, TripStop, Booking, ProfileDriver, Location
+from trip.models import TripCost
 from trip import selectors
 from trip.services.routing import get_routing_client, RoutingError
 
 
-class TripServiceError(Exception):
+class TripServiceError(ApplicationError):
     """Erro de regra de negócio (não de infraestrutura)."""
 
 
@@ -65,6 +69,12 @@ def create_trip_cost(trip: Trip) -> TripCost:
     Não é chamado de novo depois disso; o custo não muda mesmo que a
     rota seja recalculada por causa de bookings confirmados.
     """
+    if trip.total_distance_km is None:
+        raise TripServiceError("A viagem precisa ter a rota calculada antes de fixar o custo.")
+
+    if TripCost.objects.filter(trip=trip).exists():
+        raise TripServiceError("Essa viagem já possui um custo fixado.")
+
     price_per_km = Decimal(str(settings.PRICE_PER_KM))
     distance_km = Decimal(str(trip.total_distance_km))
     total_cost = (price_per_km * distance_km).quantize(Decimal("0.01"))
@@ -130,6 +140,7 @@ def create_trip(
     ])
 
     recalculate_route(trip)
+    create_trip_cost(trip)
     return trip
 
 

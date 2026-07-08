@@ -3,7 +3,7 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
-from trip.models import Trip, Booking
+from trip.models import Trip, Booking, TripCost
 from trip.services import trip as trip_services
 from trip.services.trip import TripServiceError
 
@@ -17,8 +17,9 @@ pytestmark = pytest.mark.django_db
 class TestCreateTrip:
     def test_creates_trip_with_two_stops_and_calculates_route(
         self, driver_profile, city_origin, city_destination,
-        origin_location, destination_location, future_departure_time,
+        origin_location, destination_location, future_departure_time, settings,
     ):
+        settings.PRICE_PER_KM = "1.50"
         trip = trip_services.create_trip(
             driver=driver_profile,
             origin_city_id=city_origin.id,
@@ -35,6 +36,10 @@ class TestCreateTrip:
         # vem do FakeRoutingClient (conftest.py), não do Mapbox real
         assert trip.total_distance_km == 42.0
         assert trip.line_trip is not None
+        assert TripCost.objects.filter(trip=trip).exists()
+        assert trip.cost.price_per_km == pytest.approx(1.5)
+        assert trip.cost.distance_km_snapshot == 42.0
+        assert trip.cost.total_cost == pytest.approx(63.0)
 
     def test_includes_intermediate_stops_in_order(
         self, driver_profile, city_origin, city_destination,
@@ -221,6 +226,21 @@ class TestAcceptRejectBookingRequest:
 
         assert rejected.status == Booking.Status.REJECTED
 
+    def test_trip_cost_does_not_change_after_accept_booking(
+        self, passenger_user, driver_profile, open_trip
+    ):
+        booking = self._pending_booking(passenger_user, open_trip)
+        original_total_cost = open_trip.cost.total_cost
+        original_cost_id = open_trip.cost.id
+
+        trip_services.accept_booking_request(
+            booking_id=booking.id, driver_profile_id=driver_profile.id
+        )
+
+        open_trip.refresh_from_db()
+        assert open_trip.cost.id == original_cost_id
+        assert open_trip.cost.total_cost == original_total_cost
+
 
 # ---------------------------------------------------------------------------
 # cancel_booking_request
@@ -249,3 +269,21 @@ class TestCancelBookingRequest:
 
         with pytest.raises(TripServiceError):
             trip_services.cancel_booking_request(booking_id=booking.id, passenger=passenger_user)
+
+
+class TestTripCost:
+    def test_create_trip_cost_rejects_duplicate_cost(self, open_trip):
+        with pytest.raises(TripServiceError):
+            trip_services.create_trip_cost(open_trip)
+
+    def test_trip_cost_does_not_change_after_recalculate_route(
+        self, driver_profile, open_trip
+    ):
+        original_total_cost = open_trip.cost.total_cost
+        original_cost_id = open_trip.cost.id
+
+        trip_services.new_map_order(trip_id=open_trip.id, driver_profile_id=driver_profile.id)
+
+        open_trip.refresh_from_db()
+        assert open_trip.cost.id == original_cost_id
+        assert open_trip.cost.total_cost == original_total_cost

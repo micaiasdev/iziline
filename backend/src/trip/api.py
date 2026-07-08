@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import selectors
-from .models import ProfileDriver, Trip, TripStop, Booking, Location, City
+from .models import ProfileDriver, Trip, TripStop, Booking, Location, City, TripCost
 from .services import (
   create_trip,
   create_booking_request,
@@ -110,6 +110,32 @@ class TripRouteOutputSerializer(serializers.ModelSerializer):
       "id", "line_trip", "total_distance_km", "total_duration_min",
       "status", "updated_at",
     ]
+
+
+class TripCostOutputSerializer(serializers.ModelSerializer):
+  trip_id = serializers.IntegerField(read_only=True)
+
+  class Meta:
+    model = TripCost
+    fields = [
+      "trip_id",
+      "price_per_km",
+      "distance_km_snapshot",
+      "total_cost",
+      "created_at",
+    ]
+
+
+class FareSplitItemOutputSerializer(serializers.Serializer):
+  booking_id = serializers.IntegerField()
+  passenger_id = serializers.IntegerField()
+  amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+
+class TripFareSplitOutputSerializer(serializers.Serializer):
+  trip_id = serializers.IntegerField()
+  total_cost = serializers.DecimalField(max_digits=10, decimal_places=2)
+  split = FareSplitItemOutputSerializer(many=True)
  
 # ---------------------------------------------------------------------------
 # Busca de viagens (passageiro)
@@ -177,6 +203,30 @@ class TripDetailApi(APIView):
     def get(self, request, trip_id: int):
         trip = selectors.get_trip(trip_id)
         return Response(self.OutputSerializer(trip).data)
+
+
+class TripCostDetailApi(APIView):
+    permission_classes = [AllowAny]
+    OutputSerializer = TripCostOutputSerializer
+
+    def get(self, request, trip_id: int):
+        trip = selectors.get_trip(trip_id)
+        return Response(self.OutputSerializer(trip.cost).data)
+
+
+class TripFareSplitApi(APIView):
+    permission_classes = [AllowAny]
+    OutputSerializer = TripFareSplitOutputSerializer
+
+    def get(self, request, trip_id: int):
+        trip = selectors.get_trip(trip_id)
+        split = selectors.get_fare_split(trip)
+        data = {
+            "trip_id": trip.id,
+            "total_cost": trip.cost.total_cost,
+            "split": split,
+        }
+        return Response(self.OutputSerializer(data).data)
 
 
 class TripRouteApi(APIView):

@@ -67,8 +67,6 @@ class TripStop(models.Model):
 	#avaliar a questão de uma trip stop fixa, 0 ou 1, as fixas seriam a do começo da viagem
 	class Meta:
 		unique_together = ['trip', 'location']
-		
-
 
 
 class TripCost(models.Model):
