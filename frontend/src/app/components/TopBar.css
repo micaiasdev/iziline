@@ -18,6 +18,22 @@
   width: auto;
 }
 
+.top-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.top-bar__user {
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+  max-width: 40vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .top-bar__bell {
   display: inline-flex;
   align-items: center;
@@ -31,4 +47,29 @@
   color: var(--muted);
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.top-bar__logout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.top-bar__logout:hover {
+  background: var(--teal-wash);
+  color: var(--teal-deep);
+}
+
+.top-bar__logout:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
 }
