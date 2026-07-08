@@ -1,7 +1,7 @@
 import type { TripStop } from "../../types/trip";
 
 export type RoutePoint = {
-  role: "Origem" | "Parada" | "Destino";
+  role: "Origem" | "Possíveis Paradas" | "Destino";
   cityLabel: string;
   addressLabel: string;
 };
@@ -10,7 +10,7 @@ export type RoutePoint = {
 export function tripStopsToRoutePoints(stops: TripStop[]): RoutePoint[] {
   return stops.map((stop, index) => ({
     role:
-      index === 0 ? "Origem" : index === stops.length - 1 ? "Destino" : "Parada",
+      index === 0 ? "Origem" : index === stops.length - 1 ? "Destino" : "Possíveis Paradas",
     cityLabel: `${stop.location.city.name}-${stop.location.city.state}`,
     addressLabel: stop.location.name,
   }));

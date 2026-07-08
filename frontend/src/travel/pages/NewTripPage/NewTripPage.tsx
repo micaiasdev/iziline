@@ -168,7 +168,7 @@ function stopsToRoutePoints(
       addressLabel: origin.location?.name ?? "",
     },
     ...stops.map((stop) => ({
-      role: "Parada" as const,
+      role: "Possíveis Paradas" as const,
       cityLabel: cityPointLabel(stop),
       addressLabel: stop.location?.name ?? "",
     })),
@@ -490,7 +490,7 @@ export function NewTripPage() {
 
           {stops.length > 0 && (
             <div className="new-trip-form__section new-trip-form__stops">
-              <span className="new-trip-form__stops-label">Paradas no caminho</span>
+              <span className="new-trip-form__stops-label">Paradas no caminho (opcional)</span>
               {stops.map((stop, index) => (
                 <div className="stop-row" key={stop.key}>
                   <CityPointField
