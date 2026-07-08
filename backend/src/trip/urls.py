@@ -1,9 +1,30 @@
 from django.urls import path
 
-from trip.apis import TripCancelApi, TripDetailApi, TripListCreateApi
+from . import api
+
+app_name = "trip"
 
 urlpatterns = [
-    path("", TripListCreateApi.as_view(), name="trip-list-create"),
-    path("<int:trip_id>/", TripDetailApi.as_view(), name="trip-detail"),
-    path("<int:trip_id>/cancel/", TripCancelApi.as_view(), name="trip-cancel"),
+    # Busca (passageiro)
+    path("trips/search/", api.TripSearchApi.as_view(), name="search-trips"),
+
+    # Trip (motorista)
+    path("trips/", api.TripCreateApi.as_view(), name="create-trip"),
+    path("trips/<int:trip_id>/", api.TripDetailApi.as_view(), name="trip-detail"),
+    path("trips/<int:trip_id>/reorder/", api.TripReorderStopsApi.as_view(), name="reorder-trip-stops"),
+    path("trips/<int:trip_id>/recalculate-route/", api.TripRecalculateRouteApi.as_view(), name="recalculate-route"),
+    path("trips/<int:trip_id>/booking-requests/", api.TripBookingRequestListApi.as_view(), name="trip-booking-requests"),
+
+    # Booking request (passageiro)
+    path("bookings/", api.BookingRequestCreateApi.as_view(), name="create-booking-request"),
+    path("bookings/mine/", api.MyBookingsApi.as_view(), name="my-bookings"),
+    path("bookings/<int:booking_id>/cancel/", api.BookingRequestCancelApi.as_view(), name="cancel-booking-request"),
+
+    # Booking request (motorista decidindo)
+    path("bookings/<int:booking_id>/accept/", api.BookingRequestAcceptApi.as_view(), name="accept-booking-request"),
+    path("bookings/<int:booking_id>/reject/", api.BookingRequestRejectApi.as_view(), name="reject-booking-request"),
+
+    # Apoio (autocomplete)
+    path("cities/search/", api.CitySearchApi.as_view(), name="search-cities"),
+    path("cities/<int:city_id>/locations/", api.CityLocationsApi.as_view(), name="city-locations"),
 ]
