@@ -1,51 +1,66 @@
-import type { RideSearchFilters, RideSearchResult } from "../types/ride";
 import { apiClient } from "../../../app/services/apiClient";
+import { ApiError, buildApiError } from "../../../app/services/apiError";
+import type { TripDetail, TripListItem } from "../../../types/trip";
+import { getMockTripDetail, searchMockTrips } from "../mocks/trips.mock";
+import type { RideSearchFilters } from "../types/ride";
 
-type TripListItem = {
-  id: number;
-  driver_name: string;
-  origin: string;
-  destination: string;
-  departure_at: string;
-  seats_available: number;
-  price: string;
-};
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 
-type PaginatedTripsResponse = {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: TripListItem[];
-};
-
-export async function searchRides(
+export async function searchTrips(
   filters: RideSearchFilters
-): Promise<RideSearchResult[]> {
-  const response = await apiClient.get<PaginatedTripsResponse>("/api/trips/", {
-    params: buildTripSearchParams(filters),
-  });
+): Promise<TripListItem[]> {
+  try {
+    if (USE_MOCK) {
+      await mockDelay();
+      return searchMockTrips(filters);
+    }
 
-  return response.data.results.map(mapTripToRide);
+    const { data } = await apiClient.get<TripListItem[]>("/api/trips/search/", {
+      params: buildTripSearchParams(filters),
+    });
+
+    return data;
+  } catch (error) {
+    throw buildApiError(error, "Não foi possível buscar viagens.");
+  }
+}
+
+export async function getTripDetail(tripId: number): Promise<TripDetail> {
+  try {
+    if (USE_MOCK) {
+      await mockDelay();
+      const trip = getMockTripDetail(tripId);
+      if (!trip) {
+        throw new ApiError("Viagem não encontrada.", 404);
+      }
+      return trip;
+    }
+
+    const { data } = await apiClient.get<TripDetail>(`/api/trips/${tripId}/`);
+    return data;
+  } catch (error) {
+    throw buildApiError(error, "Não foi possível carregar os detalhes da viagem.");
+  }
 }
 
 function buildTripSearchParams(filters: RideSearchFilters) {
   return {
-    ...(filters.origin.trim() ? { origin: filters.origin.trim() } : {}),
-    ...(filters.destination.trim()
-      ? { destination: filters.destination.trim() }
+    origin_city_id: filters.originCity?.id,
+    destine_city_id: filters.destineCity?.id,
+    ...(filters.dateStart
+      ? { date_start: toDateTimeParam(filters.dateStart, "start") }
       : {}),
-    ...(filters.date ? { date: filters.date } : {}),
+    ...(filters.dateEnd
+      ? { date_end: toDateTimeParam(filters.dateEnd, "end") }
+      : {}),
   };
 }
 
-function mapTripToRide(trip: TripListItem): RideSearchResult {
-  return {
-    id: trip.id,
-    driverName: trip.driver_name,
-    origin: trip.origin,
-    destination: trip.destination,
-    departureAt: trip.departure_at,
-    seatsAvailable: trip.seats_available,
-    price: trip.price,
-  };
+function toDateTimeParam(value: string, boundary: "start" | "end") {
+  const time = boundary === "start" ? "00:00:00" : "23:59:59";
+  return new Date(`${value}T${time}`).toISOString();
+}
+
+function mockDelay(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 240));
 }
