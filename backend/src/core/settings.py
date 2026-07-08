@@ -1,11 +1,10 @@
 from datetime import timedelta
 from pathlib import Path
 
-from decouple import Csv, Config, RepositoryEnv
+from decouple import AutoConfig, Csv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-ENV_FILE = BASE_DIR / ".env"
-config = Config(RepositoryEnv(ENV_FILE)) if ENV_FILE.exists() else Config()
+config = AutoConfig(search_path=BASE_DIR)
 
 
 SECRET_KEY = config("SECRET_KEY", default="unsafe-dev-secret-key")
