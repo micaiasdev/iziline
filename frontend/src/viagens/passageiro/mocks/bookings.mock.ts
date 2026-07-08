@@ -35,17 +35,22 @@ function fixtureBooking(
   pickupIndex: number,
   dropoffIndex: number,
   status: BookingStatus,
-  daysAgo: number
+  daysAgo: number,
+  tripStatusOverride?: TripListItem["status"]
 ): PassengerBooking {
   const trip = getMockTripDetail(tripId);
   if (!trip) {
     throw new Error(`Viagem mock ${tripId} não encontrada.`);
   }
 
-  const tripSummary =
+  const baseSummary =
     status === "pending" || status === "confirmed"
       ? decrementMockTripSeat(trip.id) ?? toTripListItem(trip)
       : toTripListItem(trip);
+  // Permite simular uma viagem já iniciada (chat/acompanhamento no mapa).
+  const tripSummary = tripStatusOverride
+    ? { ...baseSummary, status: tripStatusOverride }
+    : baseSummary;
 
   return {
     id: nextBookingId++,
@@ -63,7 +68,7 @@ function fixtureBooking(
 
 const passengerBookings: PassengerBooking[] = [
   fixtureBooking(1002, 0, 2, "pending", 0),
-  fixtureBooking(1001, 0, 2, "confirmed", 2),
+  fixtureBooking(1001, 0, 2, "confirmed", 2, "in_progress"),
   fixtureBooking(1005, 0, 2, "rejected", 5),
   fixtureBooking(1003, 0, 2, "cancelled", 8),
 ];

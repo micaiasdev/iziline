@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   getTripDetail,
   type DriverTripSummary,
 } from "../../service/driverTripsService";
 import { TripRouteList } from "../../../../components/TripRoute/TripRoute";
 import { tripStopsToRoutePoints } from "../../../../components/TripRoute/tripRoutePoints";
+import { startTrip } from "../../../../trip-live/service/tripLiveService";
+import { ApiError } from "../../../../app/services/apiError";
 import type { TripStatus } from "../../../../types/trip";
 import "./TripDetailPage.css";
 
@@ -30,10 +32,33 @@ function formatDateTime(value: string) {
 export function TripDetailPage() {
   const { tripId: tripIdParam } = useParams();
   const tripId = Number(tripIdParam);
+  const navigate = useNavigate();
 
   const [trip, setTrip] = useState<DriverTripSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [isStarting, setIsStarting] = useState(false);
+  const [startError, setStartError] = useState("");
+
+  function goLive() {
+    navigate(`/viagem/${tripId}/andamento`, {
+      state: { role: "driver", backTo: `/viagens/${tripId}` },
+    });
+  }
+
+  async function handleStart() {
+    setIsStarting(true);
+    setStartError("");
+    try {
+      await startTrip(tripId);
+      goLive();
+    } catch (error) {
+      setStartError(
+        error instanceof ApiError ? error.message : "Não foi possível iniciar a viagem."
+      );
+      setIsStarting(false);
+    }
+  }
 
   useEffect(() => {
     let shouldIgnore = false;
@@ -122,6 +147,29 @@ export function TripDetailPage() {
             </div>
 
             <div className="trip-card__actions">
+              {trip.status === "in_progress" && (
+                <button type="button" className="button button--primary" onClick={goLive}>
+                  Acompanhar no mapa
+                </button>
+              )}
+              {(trip.status === "open" || trip.status === "full") && (
+                <button
+                  type="button"
+                  className="button button--primary"
+                  onClick={handleStart}
+                  disabled={isStarting}
+                >
+                  {isStarting ? "Iniciando…" : "Iniciar viagem"}
+                </button>
+              )}
+              <Link
+                to={`/viagens/${trip.id}/solicitacoes`}
+                className="button button--secondary"
+              >
+                {trip.pendingRequestsCount > 0
+                  ? `Solicitações (${trip.pendingRequestsCount})`
+                  : "Solicitações de reserva"}
+              </Link>
               <Link
                 to={`/chat/viagem/${trip.id}`}
                 state={{
@@ -133,15 +181,13 @@ export function TripDetailPage() {
               >
                 Chat da viagem
               </Link>
-              <Link
-                to={`/viagens/${trip.id}/solicitacoes`}
-                className="button button--primary"
-              >
-                {trip.pendingRequestsCount > 0
-                  ? `Ver solicitações (${trip.pendingRequestsCount} pendente${trip.pendingRequestsCount === 1 ? "" : "s"})`
-                  : "Ver solicitações de reserva"}
-              </Link>
             </div>
+
+            {startError && (
+              <p className="trip-detail-start-error" role="alert">
+                {startError}
+              </p>
+            )}
           </article>
         )}
       </section>

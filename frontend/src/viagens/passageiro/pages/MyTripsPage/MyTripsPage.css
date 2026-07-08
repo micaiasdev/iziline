@@ -181,6 +181,32 @@
   border-top: 1px solid var(--border);
 }
 
+.passenger-booking-card__track-link {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  background: var(--teal-deep);
+  border: 1px solid var(--teal-deep);
+  border-radius: 8px;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.passenger-booking-card__track-link:hover {
+  background: #346361;
+  border-color: #346361;
+}
+
+.passenger-booking-card__track-link:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
 .passenger-booking-card__chat-link {
   justify-self: start;
   display: inline-flex;
