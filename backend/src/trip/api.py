@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import selectors
-from .models import ProfileDriver, Trip, TripStop, Booking, Location, City, TripCost
+from .models import ProfileDriver, Trip, TripStop, Booking, Location, City, TripCost, DriverLocation
 from .services import (
   create_trip,
   create_booking_request,
@@ -23,6 +23,7 @@ from .services import (
   reject_booking_request,
   start_trip,
   finish_trip,
+  upsert_driver_location,
   update_order,
   new_map_order,
 )
@@ -126,6 +127,14 @@ class TripCostOutputSerializer(serializers.ModelSerializer):
       "total_cost",
       "created_at",
     ]
+
+
+class DriverLocationOutputSerializer(serializers.ModelSerializer):
+  trip_id = serializers.IntegerField(source="trip.id", read_only=True)
+
+  class Meta:
+    model = DriverLocation
+    fields = ["trip_id", "latitude", "longitude", "updated_at"]
 
 
 class FareSplitItemOutputSerializer(serializers.Serializer):
@@ -288,6 +297,34 @@ class TripFinishApi(APIView):
         driver = _get_driver_profile(request)
         trip = finish_trip(trip_id=trip_id, driver_profile_id=driver.id)
         return Response(self.OutputSerializer(trip).data)
+
+
+class TripDriverLocationApi(APIView):
+    permission_classes = [AllowAny]
+    OutputSerializer = DriverLocationOutputSerializer
+
+    class InputSerializer(serializers.Serializer):
+        latitude = serializers.FloatField(min_value=-90, max_value=90)
+        longitude = serializers.FloatField(min_value=-180, max_value=180)
+
+    def get(self, request, trip_id: int):
+        location = selectors.get_driver_location_for_participant(
+            trip_id=trip_id,
+            user_id=request.user.id,
+        )
+        return Response(self.OutputSerializer(location).data)
+
+    def post(self, request, trip_id: int):
+        payload = self.InputSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+
+        driver = _get_driver_profile(request)
+        location = upsert_driver_location(
+            trip_id=trip_id,
+            driver_profile_id=driver.id,
+            **payload.validated_data,
+        )
+        return Response(self.OutputSerializer(location).data)
 
 
 # ==================

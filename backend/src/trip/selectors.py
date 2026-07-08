@@ -13,7 +13,8 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import QuerySet
 from django.utils import timezone
 
-from .models import Trip, TripStop, Booking, City, Location, TripCost
+from core.exceptions import ApplicationError
+from .models import Trip, TripStop, Booking, City, Location, TripCost, DriverLocation
 
 
 # ---------------------------------------------------------------------------
@@ -167,6 +168,29 @@ def get_confirmed_seats_count(trip: Trip) -> int:
 
 def get_available_seats(trip: Trip) -> int:
     return trip.available_spots - get_confirmed_seats_count(trip)
+
+
+def user_is_trip_participant(*, trip: Trip, user_id: int) -> bool:
+    if trip.driver and trip.driver.user_id == user_id:
+        return True
+
+    return Booking.objects.filter(
+        trip=trip,
+        passenger_id=user_id,
+        status=Booking.Status.CONFIRMED,
+    ).exists()
+
+
+def get_driver_location_for_participant(*, trip_id: int, user_id: int) -> DriverLocation:
+    trip = Trip.objects.select_related("driver").get(pk=trip_id)
+
+    if trip.status != Trip.Status.IN_PROGRESS:
+        raise ApplicationError("A localização do motorista só fica disponível durante a viagem em andamento.")
+
+    if not user_is_trip_participant(trip=trip, user_id=user_id):
+        raise PermissionDenied("Você não participa desta viagem.")
+
+    return DriverLocation.objects.select_related("trip").get(trip=trip)
 
 
 # ---------------------------------------------------------------------------
