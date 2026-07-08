@@ -24,6 +24,7 @@ type AuthContextValue = {
   isAuthenticated: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
+  updateUser: (user: AuthUser) => void;
   logout: () => void;
 };
 
@@ -89,6 +90,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus("authenticated");
   }, []);
 
+  const updateUser = useCallback((nextUser: AuthUser) => {
+    setUser(nextUser);
+    setStatus('authenticated');
+  }, []);
+
   const logout = useCallback(() => {
     authService.logout();
     setUser(null);
@@ -102,9 +108,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: status === "authenticated",
       login,
       register,
+      updateUser,
       logout,
     }),
-    [user, status, login, register, logout]
+    [user, status, login, register, updateUser, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

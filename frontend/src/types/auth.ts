@@ -25,6 +25,12 @@ export type RegisterInput = {
   phone?: string;
 };
 
+export type UpdateProfileInput = {
+  full_name: string;
+  phone: string;
+  birth_date: string | null;
+};
+
 // Resposta do TokenObtainPairView do SimpleJWT.
 export type TokenPair = {
   access: string;
