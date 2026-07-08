@@ -1,4 +1,4 @@
-import type { TripDetail } from "../../types/trip";
+import type { TripDetail } from "../../../types/trip";
 
 // Estado em memória das viagens do motorista nesta sessão (não há endpoint
 // "minhas viagens" no contrato — ver Pendências do backend). Começa vazio;

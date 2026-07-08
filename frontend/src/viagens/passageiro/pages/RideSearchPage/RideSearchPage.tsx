@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { FormField } from "../../../components/FormField/FormField";
+import { FormField } from "../../../../components/FormField/FormField";
 import { searchRides } from "../../service/rideService";
-import type { RideSearchFilters, RideSearchResult } from "../../../types/ride";
+import type { RideSearchFilters, RideSearchResult } from "../../types/ride";
 import "./RideSearchPage.css";
 
 const initialFilters: RideSearchFilters = {

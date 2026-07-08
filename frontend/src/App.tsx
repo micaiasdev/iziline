@@ -1,10 +1,10 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './app/AppShell'
-import { RideSearchPage } from './carona/pages/RideSearchPage/RideSearchPage'
-import { NewTripPage } from './travel/pages/NewTripPage/NewTripPage'
-import { TripRequestsPage } from './travel/pages/TripRequestsPage/TripRequestsPage'
-import { TripsListPage } from './travel/pages/TripsListPage/TripsListPage'
-import { TripDetailPage } from './travel/pages/TripDetailPage/TripDetailPage'
+import { RideSearchPage } from './viagens/passageiro/pages/RideSearchPage/RideSearchPage'
+import { NewTripPage } from './viagens/motorista/pages/NewTripPage/NewTripPage'
+import { TripRequestsPage } from './viagens/motorista/pages/TripRequestsPage/TripRequestsPage'
+import { TripsListPage } from './viagens/motorista/pages/TripsListPage/TripsListPage'
+import { TripDetailPage } from './viagens/motorista/pages/TripDetailPage/TripDetailPage'
 
 function App() {
   return (

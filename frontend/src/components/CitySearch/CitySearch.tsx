@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { CitySearchResult } from "../../types/trip";
-import { searchCities } from "../../travel/service/cityService";
+import { searchCities } from "../../geo/service/cityService";
 import "./CitySearch.css";
 
 type CitySearchProps = {

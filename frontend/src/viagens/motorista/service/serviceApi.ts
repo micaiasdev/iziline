@@ -2,9 +2,9 @@ import type {
   CreateTripInput,
   CreateTripPayload,
   TripDetail,
-} from "../../types/trip";
-import { apiClient } from "../../app/services/apiClient";
-import { ApiError, buildApiError } from "../../app/services/apiError";
+} from "../../../types/trip";
+import { apiClient } from "../../../app/services/apiClient";
+import { ApiError, buildApiError } from "../../../app/services/apiError";
 import { buildCreatedTripMock } from "../mocks/trip.mock";
 import { registerMockDriverTrip } from "../mocks/driver-trips.mock";
 

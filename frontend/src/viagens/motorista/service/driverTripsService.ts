@@ -1,6 +1,6 @@
-import type { TripDetail } from "../../types/trip";
-import { apiClient } from "../../app/services/apiClient";
-import { buildApiError } from "../../app/services/apiError";
+import type { TripDetail } from "../../../types/trip";
+import { apiClient } from "../../../app/services/apiClient";
+import { buildApiError } from "../../../app/services/apiError";
 import { listMockDriverTrips, getMockDriverTrip } from "../mocks/driver-trips.mock";
 import { getMockBookingRequests } from "../mocks/booking-requests.mock";
 import { listBookingRequests } from "./tripRequestsService";

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listDriverTrips, type DriverTripSummary } from "../../service/driverTripsService";
-import type { TripStatus } from "../../../types/trip";
+import type { TripStatus } from "../../../../types/trip";
 import "./TripsListPage.css";
 
 const statusLabel: Record<TripStatus, string> = {

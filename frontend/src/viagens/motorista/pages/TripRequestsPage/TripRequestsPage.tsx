@@ -5,8 +5,8 @@ import {
   listBookingRequests,
   rejectRequest,
 } from "../../service/tripRequestsService";
-import { ApiError } from "../../../app/services/apiError";
-import type { Booking, BookingStatus, TripStop } from "../../../types/trip";
+import { ApiError } from "../../../../app/services/apiError";
+import type { Booking, BookingStatus, TripStop } from "../../../../types/trip";
 import "./TripRequestsPage.css";
 
 type StatusFilter = BookingStatus | "all";

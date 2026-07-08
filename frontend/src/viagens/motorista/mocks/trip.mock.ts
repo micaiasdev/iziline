@@ -5,8 +5,8 @@ import type {
   Location,
   TripDetail,
   TripStop,
-} from "../../types/trip";
-import { mockLocationsByCity } from "./locations.mock";
+} from "../../../types/trip";
+import { mockLocationsByCity } from "../../../geo/mocks/locations.mock";
 
 let nextTripId = 7001;
 let nextStopId = 90001;

@@ -1,22 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FormField } from "../../../components/FormField/FormField";
-import { CitySearch } from "../../../components/CitySearch/CitySearch";
-import { getCityLocations } from "../../service/cityService";
+import { FormField } from "../../../../components/FormField/FormField";
+import { CitySearch } from "../../../../components/CitySearch/CitySearch";
+import { getCityLocations } from "../../../../geo/service/cityService";
 import { createTrip } from "../../service/serviceApi";
-import { ApiError } from "../../../app/services/apiError";
-import { TripRouteList } from "../../../components/TripRoute/TripRoute";
+import { ApiError } from "../../../../app/services/apiError";
+import { TripRouteList } from "../../../../components/TripRoute/TripRoute";
 import {
   tripStopsToRoutePoints,
   type RoutePoint,
-} from "../../../components/TripRoute/tripRoutePoints";
+} from "../../../../components/TripRoute/tripRoutePoints";
 import type {
   CitySearchResult,
   CreateTripInput,
   Location,
   TripDetail,
-} from "../../../types/trip";
-import izilineLogo from "../../../assets/iziline.png";
+} from "../../../../types/trip";
+import izilineLogo from "../../../../assets/iziline.png";
 import "./NewTripPage.css";
 
 const minAvailableSpots = 1;

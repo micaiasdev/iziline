@@ -1,5 +1,5 @@
-import type { RideSearchFilters, RideSearchResult } from "../../types/ride";
-import { apiClient } from "../../app/services/apiClient";
+import type { RideSearchFilters, RideSearchResult } from "../types/ride";
+import { apiClient } from "../../../app/services/apiClient";
 
 type TripListItem = {
   id: number;

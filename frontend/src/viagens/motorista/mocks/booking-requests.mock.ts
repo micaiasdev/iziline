@@ -1,5 +1,5 @@
-import type { Booking, BookingStatus, TripStop } from "../../types/trip";
-import { mockLocationsByCity } from "./locations.mock";
+import type { Booking, BookingStatus, TripStop } from "../../../types/trip";
+import { mockLocationsByCity } from "../../../geo/mocks/locations.mock";
 
 let nextBookingId = 50001;
 let nextStopId = 95001;

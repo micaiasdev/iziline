@@ -4,9 +4,9 @@ import {
   getTripDetail,
   type DriverTripSummary,
 } from "../../service/driverTripsService";
-import { TripRouteList } from "../../../components/TripRoute/TripRoute";
-import { tripStopsToRoutePoints } from "../../../components/TripRoute/tripRoutePoints";
-import type { TripStatus } from "../../../types/trip";
+import { TripRouteList } from "../../../../components/TripRoute/TripRoute";
+import { tripStopsToRoutePoints } from "../../../../components/TripRoute/tripRoutePoints";
+import type { TripStatus } from "../../../../types/trip";
 import "./TripDetailPage.css";
 
 const statusLabel: Record<TripStatus, string> = {
