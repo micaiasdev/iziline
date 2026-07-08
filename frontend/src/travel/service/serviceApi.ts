@@ -1,42 +1,55 @@
 import type {
   CreateTripInput,
   CreateTripPayload,
-  TripResponse
-} from '../../types/trip'
-import { apiClient } from './apiClient'
-import { ApiError, buildApiError } from './apiError'
+  TripDetail,
+} from "../../types/trip";
+import { apiClient } from "./apiClient";
+import { ApiError, buildApiError } from "./apiError";
+import { buildCreatedTripMock } from "../mocks/trip.mock";
 
-export { ApiError }
+export { ApiError };
 
-export function buildDepartureAt(date: string, time: string): string {
-  const departureAt = new Date(`${date}T${time}`)
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 
-  if (Number.isNaN(departureAt.getTime())) {
-    throw new ApiError('Data ou horario da viagem invalidos.', 0)
+export function buildDepartureTime(date: string, time: string): string {
+  const departure = new Date(`${date}T${time}`);
+
+  if (Number.isNaN(departure.getTime())) {
+    throw new ApiError("Data ou horário da viagem inválidos.", 0);
   }
 
-  return departureAt.toISOString()
+  return departure.toISOString();
 }
 
-export async function createTrip(
-  input: CreateTripInput
-): Promise<TripResponse> {
-  const payload = buildCreateTripPayload(input)
+// 1c. Criar viagem — POST /api/trips/
+export async function createTrip(input: CreateTripInput): Promise<TripDetail> {
+  const payload = buildCreateTripPayload(input);
+
+  if (USE_MOCK) {
+    await mockDelay();
+    return buildCreatedTripMock(input, payload);
+  }
 
   try {
-    const response = await apiClient.post<TripResponse>('/api/trips/', payload)
-    return response.data
+    const { data } = await apiClient.post<TripDetail>("/api/trips/", payload);
+    return data;
   } catch (error) {
-    throw buildApiError(error, 'Nao foi possivel cadastrar a viagem.')
+    throw buildApiError(error, "Não foi possível cadastrar a viagem.");
   }
 }
 
 function buildCreateTripPayload(input: CreateTripInput): CreateTripPayload {
   return {
-    origin: input.origin.trim(),
-    destination: input.destination.trim(),
-    departure_at: buildDepartureAt(input.date, input.time),
-    seats_available: input.availableSeats
-  }
+    origin_city_id: input.originCityId,
+    destine_city_id: input.destineCityId,
+    departure_time: buildDepartureTime(input.date, input.time),
+    available_spots: input.availableSpots,
+    origin_location_id: input.originLocationId,
+    destination_location_id: input.destinationLocationId,
+    intermediate_location_ids: input.intermediateLocationIds,
+  };
 }
 
+function mockDelay(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 420));
+}
