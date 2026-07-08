@@ -48,7 +48,7 @@ class Trip(models.Model):
 	updated_at = models.DateTimeField(auto_now=True)
 	
 	#Estágios de uma trip 
-  class Status(models.TextChoices):
+	class Status(models.TextChoices):
 		OPEN = "open", "Aceitando passageiros"
 		FULL = "full", "Sem vagas disponíveis"
 		IN_PROGRESS = "in_progress", "Já iniciada"
