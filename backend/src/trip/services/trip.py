@@ -13,22 +13,9 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.utils import timezone
 
-from ..models import Trip, TripStop, Booking, ProfileDriver, Location
-from .. import selectors
-from .routing import get_routing_client, RoutingError
-
-__all__ = [
-    "TripServiceError",
-    "StopInput",
-    "recalculate_route",
-    "create_trip",
-    "create_booking_request",
-    "cancel_booking_request",
-    "accept_booking_request",
-    "reject_booking_request",
-    "update_order",
-    "new_map_order",
-]
+from trip.models import Trip, TripStop, Booking, ProfileDriver, Location
+from trip import selectors
+from trip.services.routing import get_routing_client, RoutingError
 
 
 class TripServiceError(Exception):
@@ -51,21 +38,44 @@ def recalculate_route(trip: Trip) -> Trip:
     route_stops = list(selectors.get_route_stops(trip))
     if len(route_stops) < 2:
         raise TripServiceError("A viagem precisa de pelo menos origem e destino pra calcular rota.")
-
+ 
     coordinates = [(stop.location.longitude, stop.location.latitude) for stop in route_stops]
-
+ 
     client = get_routing_client()
     try:
         route = client.get_route(coordinates)
     except RoutingError as exc:
         raise TripServiceError(f"Não foi possível calcular a rota: {exc}") from exc
-
+ 
     trip.line_trip = route.geometry
     trip.total_distance_km = route.distance_km
     trip.total_duration_min = route.duration_min
-    trip.save(update_fields=["line_trip", "total_distance_km", "total_duration_min", "updated_at"])
+    trip.route_legs = route.legs
+    trip.save(update_fields=[
+        "line_trip", "total_distance_km", "total_duration_min", "route_legs", "updated_at",
+    ])
     return trip
 
+
+def create_trip_cost(trip: Trip) -> TripCost:
+    """
+    Calcula e FIXA o custo da viagem, uma única vez — usa
+    trip.total_distance_km (precisa já estar calculado, ou seja, chamar
+    depois de recalculate_route) x settings.PRICE_PER_KM vigente agora.
+    Não é chamado de novo depois disso; o custo não muda mesmo que a
+    rota seja recalculada por causa de bookings confirmados.
+    """
+    price_per_km = Decimal(str(settings.PRICE_PER_KM))
+    distance_km = Decimal(str(trip.total_distance_km))
+    total_cost = (price_per_km * distance_km).quantize(Decimal("0.01"))
+ 
+    return TripCost.objects.create(
+        trip=trip,
+        price_per_km=price_per_km,
+        distance_km_snapshot=trip.total_distance_km,
+        total_cost=total_cost,
+    )
+ 
 
 # ---------------------------------------------------------------------------
 # Criar viagem
