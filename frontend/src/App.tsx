@@ -4,6 +4,7 @@ import { ProtectedRoute } from './app/auth/ProtectedRoute'
 import { PublicOnlyRoute } from './app/auth/PublicOnlyRoute'
 import { LoginPage } from './app/auth/pages/LoginPage/LoginPage'
 import { RegisterPage } from './app/auth/pages/RegisterPage/RegisterPage'
+import { SubscriptionPage } from './assinatura/pages/SubscriptionPage/SubscriptionPage'
 import { ReservationChatPage } from './chat/pages/ReservationChatPage/ReservationChatPage'
 import { TripChatPage } from './chat/pages/TripChatPage/TripChatPage'
 import { RideSearchPage } from './viagens/passageiro/pages/RideSearchPage/RideSearchPage'
@@ -38,6 +39,7 @@ function App() {
           <Route path="caronas" element={<RideSearchPage />} />
           <Route path="caronas/:tripId" element={<PassengerTripDetailPage />} />
           <Route path="minhas-viagens" element={<MyTripsPage />} />
+          <Route path="assinatura" element={<SubscriptionPage />} />
           <Route path="*" element={<Navigate to="/viagens" replace />} />
         </Route>
       </Route>
