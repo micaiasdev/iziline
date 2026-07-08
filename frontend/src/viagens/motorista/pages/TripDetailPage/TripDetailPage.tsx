@@ -123,6 +123,17 @@ export function TripDetailPage() {
 
             <div className="trip-card__actions">
               <Link
+                to={`/chat/viagem/${trip.id}`}
+                state={{
+                  title: "Chat da viagem",
+                  subtitle: `${trip.origin_city.name} → ${trip.destine_city.name}`,
+                  backTo: `/viagens/${trip.id}`,
+                }}
+                className="button button--secondary"
+              >
+                Chat da viagem
+              </Link>
+              <Link
                 to={`/viagens/${trip.id}/solicitacoes`}
                 className="button button--primary"
               >

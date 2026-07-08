@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { ApiError } from "../../../../app/services/apiError";
 import { ConfirmModal } from "../../../../components/ConfirmModal/ConfirmModal";
 import type { BookingStatus, PassengerBooking } from "../../../../types/trip";
@@ -160,6 +161,9 @@ function BookingCard({ booking, onCancelled }: BookingCardProps) {
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState("");
   const trip = booking.trip_summary;
+  const routeLabel = trip
+    ? `${trip.origin_city.name} → ${trip.destine_city.name}`
+    : `Reserva #${booking.id}`;
 
   async function handleConfirmCancel() {
     setIsCancelling(true);
@@ -243,15 +247,43 @@ function BookingCard({ booking, onCancelled }: BookingCardProps) {
         </p>
       )}
 
-      {booking.status === "pending" && (
+      {(booking.status === "pending" || booking.status === "confirmed") && (
         <div className="passenger-booking-card__actions">
-          <button
-            type="button"
-            className="passenger-booking-card__cancel-button"
-            onClick={() => setIsModalOpen(true)}
-          >
-            Cancelar reserva
-          </button>
+          {booking.status === "pending" ? (
+            <Link
+              to={`/chat/reserva/${booking.id}`}
+              state={{
+                title: "Conversa com o motorista",
+                subtitle: routeLabel,
+                backTo: "/minhas-viagens",
+              }}
+              className="passenger-booking-card__chat-link"
+            >
+              Conversar com o motorista
+            </Link>
+          ) : (
+            <Link
+              to={`/chat/viagem/${booking.trip}`}
+              state={{
+                title: "Chat da viagem",
+                subtitle: routeLabel,
+                backTo: "/minhas-viagens",
+              }}
+              className="passenger-booking-card__chat-link"
+            >
+              Abrir chat da viagem
+            </Link>
+          )}
+
+          {booking.status === "pending" && (
+            <button
+              type="button"
+              className="passenger-booking-card__cancel-button"
+              onClick={() => setIsModalOpen(true)}
+            >
+              Cancelar reserva
+            </button>
+          )}
 
           {cancelError && (
             <span className="passenger-booking-card__cancel-error" role="alert">
