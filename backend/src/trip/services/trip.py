@@ -56,6 +56,7 @@ def recalculate_route(trip: Trip) -> Trip:
     ])
     return trip
 
+
 def create_trip_cost(trip: Trip) -> TripCost:
     """
     Calcula e FIXA o custo da viagem, uma única vez — usa
