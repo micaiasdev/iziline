@@ -107,3 +107,15 @@ export type Booking = {
   created_at: string;
   confirmed_at: string | null;
 };
+
+export type CreateBookingPayload = {
+  trip_id: number;
+  pickup_stop_id: number;
+  dropoff_stop_id: number;
+};
+
+// Enriquecimento usado pela UI de "Minhas reservas" enquanto o backend ainda
+// devolve somente o id da viagem em /api/bookings/mine/.
+export type PassengerBooking = Booking & {
+  trip_summary?: TripListItem;
+};

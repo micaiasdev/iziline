@@ -1,9 +1,8 @@
 import { NavLink } from "react-router-dom";
-import { Route as RouteIcon, MessageCircle, User } from "lucide-react";
+import { Car, Route as RouteIcon, SquarePen, User } from "lucide-react";
 import "./BottomNav.css";
 
 const upcomingItems = [
-  { label: "Chats", Icon: MessageCircle },
   { label: "Perfil", Icon: User },
 ];
 
@@ -20,6 +19,26 @@ export function BottomNav() {
         <span className="bottom-nav__label">Viagens</span>
       </NavLink>
 
+      <NavLink
+        to="/caronas"
+        className={({ isActive }) =>
+          isActive ? "bottom-nav__item is-active" : "bottom-nav__item"
+        }
+      >
+        <Car size={22} aria-hidden="true" />
+        <span className="bottom-nav__label">Caronas</span>
+      </NavLink>
+
+      <NavLink
+        to="/minhas-viagens"
+        className={({ isActive }) =>
+          isActive ? "bottom-nav__item is-active" : "bottom-nav__item"
+        }
+      >
+        <SquarePen size={22} aria-hidden="true" />
+        <span className="bottom-nav__label">Reservas</span>
+      </NavLink>
+
       {upcomingItems.map(({ label, Icon }) => (
         <span
           key={label}
@@ -31,7 +50,6 @@ export function BottomNav() {
         >
           <Icon size={22} aria-hidden="true" />
           <span className="bottom-nav__label">{label}</span>
-          <span className="bottom-nav__soon">Em breve</span>
         </span>
       ))}
     </nav>
