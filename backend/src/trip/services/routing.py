@@ -1,36 +1,24 @@
 """
-<<<<<<< HEAD
-Camada de integração com serviços externos de roteamento.
-=======
 routing.py
 
 Camada de integração com serviços externos de roteamento.
 
->>>>>>> origin/dev
 Ninguém fora deste arquivo deve importar MapboxRoutingClient diretamente.
 O resto do app (services.py, views, etc.) só conhece get_routing_client().
 Trocar de provedor no futuro (ex: adicionar OSRM) = adicionar uma classe
 aqui + uma linha na factory, sem mudar mais nada no projeto.
 """
-<<<<<<< HEAD
-from __future__ import annotations
-import logging
-from dataclasses import dataclass
-=======
 
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
 
->>>>>>> origin/dev
 import requests
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-<<<<<<< HEAD
-=======
 __all__ = [
     "RoutingError",
     "RouteResult",
@@ -39,15 +27,11 @@ __all__ = [
     "get_routing_client",
 ]
 
->>>>>>> origin/dev
 
 class RoutingError(Exception):
     """Erro ao consultar o serviço de rotas (rede, resposta inválida, sem rota etc.)."""
 
-<<<<<<< HEAD
-=======
 
->>>>>>> origin/dev
 @dataclass
 class RouteResult:
     distance_km: float
