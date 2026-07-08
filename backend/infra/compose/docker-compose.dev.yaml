@@ -1,7 +1,7 @@
 services:
   backend:
     build:
-      context: ../../backend
+      context: ../../
       dockerfile: src/Dockerfile
       target: development
 
@@ -14,10 +14,11 @@ services:
       "
 
     env_file:
-      - ../../backend/src/.env.dev
+      - ../../src/.env.dev
 
     volumes:
-      - ../../backend/src:/app
+      - ../../src:/app
+      - ../../src/.env.dev:/app/.env:ro
 
     ports:
       - "8000:8000"

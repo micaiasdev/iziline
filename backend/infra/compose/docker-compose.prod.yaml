@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
 
     env_file:
-      - ../../backend/src/.env.prod
+      - ../../src/.env.prod
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -16,7 +16,7 @@ services:
 
   backend:
     build:
-      context: ../../backend
+      context: ../../
       dockerfile: src/Dockerfile
       target: production
 
@@ -32,9 +32,10 @@ services:
       "
 
     env_file:
-      - ../../backend/src/.env.prod
+      - ../../src/.env.prod
 
     volumes:
+      - ../../src/.env.prod:/app/.env:ro
       - static_volume:/app/staticfiles
       - media_volume:/app/media
 

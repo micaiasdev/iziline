@@ -1,31 +1,25 @@
-from pathlib import Path
 from datetime import timedelta
-import environ
+from pathlib import Path
+
+from decouple import Csv, Config, RepositoryEnv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-env = environ.Env(
-    DEBUG=(bool, False),
-    DATABASE_ENGINE=(str, "sqlite"),
-)
-
-# Lê .env apenas se existir. No Docker Compose, env_file já injeta as variáveis.
-env_file = BASE_DIR / ".env"
-if env_file.exists():
-    environ.Env.read_env(env_file)
+ENV_FILE = BASE_DIR / ".env"
+config = Config(RepositoryEnv(ENV_FILE)) if ENV_FILE.exists() else Config()
 
 
-SECRET_KEY = env("SECRET_KEY", default="unsafe-dev-secret-key")
-DEBUG = env.bool("DEBUG", default=False)
+SECRET_KEY = config("SECRET_KEY", default="unsafe-dev-secret-key")
+DEBUG = config("DEBUG", default=False, cast=bool)
 
-ALLOWED_HOSTS = env.list(
+ALLOWED_HOSTS = config(
     "ALLOWED_HOSTS",
-    default=["localhost", "127.0.0.1", "0.0.0.0"],
+    default="localhost,127.0.0.1,0.0.0.0",
+    cast=Csv(),
 )
 
-MAPBOX_ACCESS_TOKEN = env("MAPBOX_ACCESS_TOKEN", default="")
-ROUTING_PROVIDER = env("ROUTING_PROVIDER", default="mapbox")
-PRICE_PER_KM = env.float("PRICE_PER_KM", default=1.00)
+MAPBOX_ACCESS_TOKEN = config("MAPBOX_ACCESS_TOKEN", default="")
+ROUTING_PROVIDER = config("ROUTING_PROVIDER", default="mapbox").strip().lower()
+PRICE_PER_KM = config("PRICE_PER_KM", default=1.00, cast=float)
 
 
 INSTALLED_APPS = [
@@ -38,6 +32,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
 
+    "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt",
 
@@ -50,6 +45,7 @@ AUTH_USER_MODEL = "users.User"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -78,17 +74,17 @@ TEMPLATES = [
 WSGI_APPLICATION = "core.wsgi.application"
 
 
-DATABASE_ENGINE = env("DATABASE_ENGINE", default="sqlite")
+DATABASE_ENGINE = config("DATABASE_ENGINE", default="sqlite").strip().lower()
 
 if DATABASE_ENGINE == "postgres":
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": env("POSTGRES_DB"),
-            "USER": env("POSTGRES_USER"),
-            "PASSWORD": env("POSTGRES_PASSWORD"),
-            "HOST": env("POSTGRES_HOST", default="database"),
-            "PORT": env("POSTGRES_PORT", default="5432"),
+            "NAME": config("POSTGRES_DB"),
+            "USER": config("POSTGRES_USER"),
+            "PASSWORD": config("POSTGRES_PASSWORD"),
+            "HOST": config("POSTGRES_HOST", default="database"),
+            "PORT": config("POSTGRES_PORT", default="5432"),
         }
     }
 else:
@@ -116,8 +112,8 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-LANGUAGE_CODE = env("LANGUAGE_CODE", default="pt-br")
-TIME_ZONE = env("TIME_ZONE", default="America/Fortaleza")
+LANGUAGE_CODE = config("LANGUAGE_CODE", default="pt-br")
+TIME_ZONE = config("TIME_ZONE", default="America/Fortaleza")
 
 USE_I18N = True
 USE_TZ = True
@@ -133,13 +129,14 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
-CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="", cast=Csv())
+CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", default="", cast=Csv())
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=not DEBUG)
-CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=not DEBUG)
-SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=False)
+SESSION_COOKIE_SECURE = config("SESSION_COOKIE_SECURE", default=not DEBUG, cast=bool)
+CSRF_COOKIE_SECURE = config("CSRF_COOKIE_SECURE", default=not DEBUG, cast=bool)
+SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=False, cast=bool)
 
 
 REST_FRAMEWORK = {
