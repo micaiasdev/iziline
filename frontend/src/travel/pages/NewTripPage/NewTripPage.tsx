@@ -5,12 +5,16 @@ import { CitySearch } from "../../../components/CitySearch/CitySearch";
 import { getCityLocations } from "../../service/cityService";
 import { createTrip } from "../../service/serviceApi";
 import { ApiError } from "../../../app/services/apiError";
+import { TripRouteList } from "../../../components/TripRoute/TripRoute";
+import {
+  tripStopsToRoutePoints,
+  type RoutePoint,
+} from "../../../components/TripRoute/tripRoutePoints";
 import type {
   CitySearchResult,
   CreateTripInput,
   Location,
   TripDetail,
-  TripStop,
 } from "../../../types/trip";
 import izilineLogo from "../../../assets/iziline.png";
 import "./NewTripPage.css";
@@ -40,12 +44,6 @@ type FormErrors = {
   date?: string;
   time?: string;
   departure?: string;
-};
-
-type RoutePoint = {
-  role: "Origem" | "Parada" | "Destino";
-  cityLabel: string;
-  addressLabel: string;
 };
 
 function formatSpots(value: number) {
@@ -158,29 +156,6 @@ function CityPointField({
   );
 }
 
-// Trajeto ordenado (origem → paradas → destino) com conector vertical.
-function TripRouteList({ points }: { points: RoutePoint[] }) {
-  return (
-    <ol className="trip-route-list">
-      {points.map((point, index) => (
-        <li className="trip-route-list__item" key={`${point.role}-${index}`}>
-          <div className="trip-route-list__marker" aria-hidden="true">
-            <span className="trip-route-list__dot" />
-            {index < points.length - 1 && (
-              <span className="trip-route-list__line" />
-            )}
-          </div>
-          <div className="trip-route-list__content">
-            <span className="trip-route-list__role">{point.role}</span>
-            <strong>{point.cityLabel}</strong>
-            <span className="trip-route-list__address">{point.addressLabel}</span>
-          </div>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
 function stopsToRoutePoints(
   origin: CityPointValue,
   stops: StopField[],
@@ -203,15 +178,6 @@ function stopsToRoutePoints(
       addressLabel: destination.location?.name ?? "",
     },
   ];
-}
-
-function tripStopsToRoutePoints(stops: TripStop[]): RoutePoint[] {
-  return stops.map((stop, index) => ({
-    role:
-      index === 0 ? "Origem" : index === stops.length - 1 ? "Destino" : "Parada",
-    cityLabel: `${stop.location.city.name}-${stop.location.city.state}`,
-    addressLabel: stop.location.name,
-  }));
 }
 
 export function NewTripPage() {
@@ -484,16 +450,16 @@ export function NewTripPage() {
               <button
                 className="button button--secondary"
                 type="button"
-                onClick={() => navigate(`/viagens/${createdTrip.id}/solicitacoes`)}
+                onClick={handleCreateAnother}
               >
-                Ver solicitações de reserva
+                Cadastrar outra viagem
               </button>
               <button
                 className="button button--primary"
                 type="button"
-                onClick={handleCreateAnother}
+                onClick={() => navigate("/viagens")}
               >
-                Cadastrar outra viagem
+                Ver minhas viagens
               </button>
             </div>
           </article>

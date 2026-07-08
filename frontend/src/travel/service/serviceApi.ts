@@ -6,6 +6,7 @@ import type {
 import { apiClient } from "../../app/services/apiClient";
 import { ApiError, buildApiError } from "../../app/services/apiError";
 import { buildCreatedTripMock } from "../mocks/trip.mock";
+import { registerMockDriverTrip } from "../mocks/driver-trips.mock";
 
 export { ApiError };
 
@@ -27,7 +28,9 @@ export async function createTrip(input: CreateTripInput): Promise<TripDetail> {
 
   if (USE_MOCK) {
     await mockDelay();
-    return buildCreatedTripMock(input, payload);
+    const trip = buildCreatedTripMock(input, payload);
+    registerMockDriverTrip(trip);
+    return trip;
   }
 
   try {

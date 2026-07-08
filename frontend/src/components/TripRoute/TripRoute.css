@@ -1,0 +1,61 @@
+/* Trajeto ordenado (origem → paradas → destino) com conector vertical. */
+.trip-route-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trip-route-list__item {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.trip-route-list__marker {
+  display: grid;
+  justify-items: center;
+}
+
+.trip-route-list__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--teal);
+  margin-top: 4px;
+}
+
+.trip-route-list__line {
+  width: 2px;
+  flex: 1;
+  min-height: 24px;
+  background: var(--teal-wash);
+}
+
+.trip-route-list__content {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding-bottom: 16px;
+}
+
+.trip-route-list__role {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.trip-route-list__content strong {
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.trip-route-list__address {
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
