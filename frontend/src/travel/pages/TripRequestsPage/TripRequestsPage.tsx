@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import {
   acceptRequest,
   listBookingRequests,
@@ -49,7 +50,9 @@ function stopLabel(stop: TripStop) {
 
 type ActionState = "idle" | "accepting" | "rejecting";
 
-export function TripRequestsPage({ tripId }: { tripId: number }) {
+export function TripRequestsPage() {
+  const { tripId: tripIdParam } = useParams();
+  const tripId = Number(tripIdParam);
   const [status, setStatus] = useState<StatusFilter>("pending");
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);

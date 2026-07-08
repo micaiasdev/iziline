@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { FormField } from "../../../components/FormField/FormField";
 import { CitySearch } from "../../../components/CitySearch/CitySearch";
 import { getCityLocations } from "../../service/cityService";
@@ -213,13 +214,8 @@ function tripStopsToRoutePoints(stops: TripStop[]): RoutePoint[] {
   }));
 }
 
-export function NewTripPage({
-  onTripCreated,
-  onViewRequests,
-}: {
-  onTripCreated: (tripId: number) => void;
-  onViewRequests: (tripId: number) => void;
-}) {
+export function NewTripPage() {
+  const navigate = useNavigate();
   const stopKeyCounter = useRef(0);
 
   const [stage, setStage] = useState<Stage>("form");
@@ -363,7 +359,6 @@ export function NewTripPage({
       const trip = await createTrip(input);
       setCreatedTrip(trip);
       setStage("completed");
-      onTripCreated(trip.id);
     } catch (error) {
       setSubmissionError(
         error instanceof ApiError
@@ -489,7 +484,7 @@ export function NewTripPage({
               <button
                 className="button button--secondary"
                 type="button"
-                onClick={() => onViewRequests(createdTrip.id)}
+                onClick={() => navigate(`/viagens/${createdTrip.id}/solicitacoes`)}
               >
                 Ver solicitações de reserva
               </button>
