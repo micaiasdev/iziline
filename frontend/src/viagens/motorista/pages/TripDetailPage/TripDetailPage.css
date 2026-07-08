@@ -183,6 +183,12 @@
   outline-offset: 2px;
 }
 
+.trip-detail-start-error {
+  margin: 10px 0 0;
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
 .button--secondary {
   background: var(--teal-wash);
   border: 1px solid #cfe3e1;

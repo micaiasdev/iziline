@@ -262,17 +262,28 @@ function BookingCard({ booking, onCancelled }: BookingCardProps) {
               Conversar com o motorista
             </Link>
           ) : (
-            <Link
-              to={`/chat/viagem/${booking.trip}`}
-              state={{
-                title: "Chat da viagem",
-                subtitle: routeLabel,
-                backTo: "/minhas-viagens",
-              }}
-              className="passenger-booking-card__chat-link"
-            >
-              Abrir chat da viagem
-            </Link>
+            <>
+              {trip?.status === "in_progress" && (
+                <Link
+                  to={`/viagem/${booking.trip}/andamento`}
+                  state={{ role: "passenger", backTo: "/minhas-viagens" }}
+                  className="passenger-booking-card__track-link"
+                >
+                  Acompanhar no mapa
+                </Link>
+              )}
+              <Link
+                to={`/chat/viagem/${booking.trip}`}
+                state={{
+                  title: "Chat da viagem",
+                  subtitle: routeLabel,
+                  backTo: "/minhas-viagens",
+                }}
+                className="passenger-booking-card__chat-link"
+              >
+                Abrir chat da viagem
+              </Link>
+            </>
           )}
 
           {booking.status === "pending" && (
