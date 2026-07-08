@@ -6,12 +6,11 @@ import type { BookingStatus, PassengerBooking } from "../../../../types/trip";
 import { cancelBooking, listMyBookings } from "../../service/agendaService";
 import "./MyTripsPage.css";
 
-type BookingFilter = "all" | "pending" | "confirmed" | "history";
+type BookingFilter = "all" | "pending" | "history";
 
 const tabs: { value: BookingFilter; label: string }[] = [
   { value: "all", label: "Todas" },
   { value: "pending", label: "Pendentes" },
-  { value: "confirmed", label: "Confirmadas" },
   { value: "history", label: "Histórico" },
 ];
 
@@ -48,7 +47,9 @@ export function MyTripsPage() {
       try {
         const results = await listMyBookings();
         if (!shouldIgnore) {
-          setBookings(results);
+          // Reservas confirmadas migram para a aba "Viagens"; aqui ficam só
+          // pendentes e histórico (recusadas/canceladas).
+          setBookings(results.filter((booking) => booking.status !== "confirmed"));
         }
       } catch (loadError) {
         if (!shouldIgnore) {
@@ -247,54 +248,27 @@ function BookingCard({ booking, onCancelled }: BookingCardProps) {
         </p>
       )}
 
-      {(booking.status === "pending" || booking.status === "confirmed") && (
+      {booking.status === "pending" && (
         <div className="passenger-booking-card__actions">
-          {booking.status === "pending" ? (
-            <Link
-              to={`/chat/reserva/${booking.id}`}
-              state={{
-                title: "Conversa com o motorista",
-                subtitle: routeLabel,
-                backTo: "/minhas-viagens",
-              }}
-              className="passenger-booking-card__chat-link"
-            >
-              Conversar com o motorista
-            </Link>
-          ) : (
-            <>
-              {trip?.status === "in_progress" && (
-                <Link
-                  to={`/viagem/${booking.trip}/andamento`}
-                  state={{ role: "passenger", backTo: "/minhas-viagens" }}
-                  className="passenger-booking-card__track-link"
-                >
-                  Acompanhar no mapa
-                </Link>
-              )}
-              <Link
-                to={`/chat/viagem/${booking.trip}`}
-                state={{
-                  title: "Chat da viagem",
-                  subtitle: routeLabel,
-                  backTo: "/minhas-viagens",
-                }}
-                className="passenger-booking-card__chat-link"
-              >
-                Abrir chat da viagem
-              </Link>
-            </>
-          )}
+          <Link
+            to={`/chat/reserva/${booking.id}`}
+            state={{
+              title: "Conversa com o motorista",
+              subtitle: routeLabel,
+              backTo: "/minhas-viagens",
+            }}
+            className="passenger-booking-card__chat-link"
+          >
+            Conversar com o motorista
+          </Link>
 
-          {booking.status === "pending" && (
-            <button
-              type="button"
-              className="passenger-booking-card__cancel-button"
-              onClick={() => setIsModalOpen(true)}
-            >
-              Cancelar reserva
-            </button>
-          )}
+          <button
+            type="button"
+            className="passenger-booking-card__cancel-button"
+            onClick={() => setIsModalOpen(true)}
+          >
+            Cancelar reserva
+          </button>
 
           {cancelError && (
             <span className="passenger-booking-card__cancel-error" role="alert">
