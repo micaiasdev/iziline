@@ -11,6 +11,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 
 from .models import User
+from trip.models import ProfileDriver
 
 __all__ = ["user_create", "user_update"]
 
@@ -25,7 +26,7 @@ def user_create(
     birth_date=None,
     phone: str = "",
 ) -> User:
-    """Cria um usuário comum (passageiro por padrão)."""
+    """Cria um usuário e já habilita seu perfil de motorista no MVP."""
     user = User(
         email=email,
         full_name=full_name,
@@ -43,6 +44,8 @@ def user_create(
     except IntegrityError as exc:
         # e-mail/CPF duplicado (unique=True) chega aqui como IntegrityError.
         raise ValidationError("E-mail ou CPF já cadastrado.") from exc
+
+    ProfileDriver.objects.create(user=user, is_verified=True)
 
     return user
 

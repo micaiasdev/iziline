@@ -1,15 +1,51 @@
 # Contrato de API Atual - Trip
 
-**Data:** 2026-07-09
+**Data:** 2026-07-09  
 **Fonte da verdade:** `backend/src/trip/urls.py` e `backend/src/trip/api.py`
 
 ## Escopo
 
-Este documento descreve o contrato atual exposto pelo app `trip`.
-As rotas entram pelo prefixo `/api/`, conforme `backend/src/core/urls.py`.
+Este documento descreve o contrato HTTP atualmente exposto pelo app `trip`.
+As rotas entram com prefixo `/api/`.
 
-O arquivo `backend/src/trip/apis.py` e o design antigo em `docs/` nao fazem
-parte do contrato atual.
+O que foi considerado aqui:
+
+- `backend/src/trip/urls.py`
+- `backend/src/trip/api.py`
+- selectors/services chamados pelos endpoints quando isso altera resposta ou regra observavel
+
+## Rotas ativas
+
+### Trips
+
+- `GET /api/trips/search/`
+- `POST /api/trips/`
+- `GET /api/trips/mine/`
+- `GET /api/trips/<trip_id>/`
+- `GET /api/trips/<trip_id>/route/`
+- `GET /api/trips/<trip_id>/cost/`
+- `GET /api/trips/<trip_id>/fare-split/`
+- `GET /api/trips/<trip_id>/fare-quote/`
+- `POST /api/trips/<trip_id>/start/`
+- `POST /api/trips/<trip_id>/finish/`
+- `GET /api/trips/<trip_id>/location/`
+- `POST /api/trips/<trip_id>/location/`
+- `POST /api/trips/<trip_id>/reorder/`
+- `POST /api/trips/<trip_id>/recalculate-route/`
+- `GET /api/trips/<trip_id>/booking-requests/`
+
+### Bookings
+
+- `POST /api/bookings/`
+- `GET /api/bookings/mine/`
+- `POST /api/bookings/<booking_id>/cancel/`
+- `POST /api/bookings/<booking_id>/accept/`
+- `POST /api/bookings/<booking_id>/reject/`
+
+### Cities
+
+- `GET /api/cities/search/`
+- `GET /api/cities/<city_id>/locations/`
 
 ## Serializers de saida compartilhados
 
@@ -28,10 +64,10 @@ parte do contrato atual.
 ```json
 {
   "id": 10,
-  "name": "Rodoviaria",
-  "formatted_address": "Av. ...",
-  "latitude": -5.09,
-  "longitude": -42.8,
+  "name": "Rodoviaria de Teresina",
+  "formatted_address": "Av. Presidente Getulio Vargas, Teresina - PI",
+  "latitude": -5.089,
+  "longitude": -42.801,
   "city": {
     "id": 1,
     "name": "Teresina",
@@ -48,10 +84,10 @@ parte do contrato atual.
   "order": 0,
   "location": {
     "id": 10,
-    "name": "Rodoviaria",
-    "formatted_address": "Av. ...",
-    "latitude": -5.09,
-    "longitude": -42.8,
+    "name": "Rodoviaria de Teresina",
+    "formatted_address": "Av. Presidente Getulio Vargas, Teresina - PI",
+    "latitude": -5.089,
+    "longitude": -42.801,
     "city": {
       "id": 1,
       "name": "Teresina",
@@ -69,52 +105,89 @@ parte do contrato atual.
   "price_per_km": "1.00",
   "distance_km_snapshot": 340.5,
   "total_cost": "340.50",
-  "created_at": "2026-07-08T12:00:00Z"
+  "created_at": "2026-07-09T12:00:00Z"
 }
 ```
 
-### Booking
+### TripListItem
 
 ```json
 {
   "id": 1,
-  "trip": 1,
-  "passenger": 9,
-  "pickup_stop": {
-    "id": 100,
-    "order": 0,
-    "location": {
-      "id": 10,
-      "name": "Rodoviaria",
-      "formatted_address": "Av. ...",
-      "latitude": -5.09,
-      "longitude": -42.8,
-      "city": {
-        "id": 1,
-        "name": "Teresina",
-        "state": "PI"
-      }
-    }
+  "origin_city": {
+    "id": 1,
+    "name": "Teresina",
+    "state": "PI"
   },
-  "dropoff_stop": {
-    "id": 101,
-    "order": 1,
-    "location": {
-      "id": 20,
-      "name": "Destino",
-      "formatted_address": "Rua ...",
-      "latitude": -2.9,
-      "longitude": -41.77,
-      "city": {
-        "id": 2,
-        "name": "Parnaiba",
-        "state": "PI"
-      }
-    }
+  "destine_city": {
+    "id": 2,
+    "name": "Fortaleza",
+    "state": "CE"
   },
-  "status": "pending",
-  "created_at": "2026-07-08T12:00:00Z",
-  "confirmed_at": null
+  "departure_time": "2026-07-09T14:00:00Z",
+  "available_spots": 3,
+  "status": "open",
+  "total_distance_km": 340.5,
+  "total_duration_min": 280.0,
+  "cost": {
+    "trip_id": 1,
+    "price_per_km": "1.00",
+    "distance_km_snapshot": 340.5,
+    "total_cost": "340.50",
+    "created_at": "2026-07-09T12:00:00Z"
+  }
+}
+```
+
+### MyTripItem
+
+```json
+{
+  "role": "driver",
+  "trip": {
+    "id": 1,
+    "origin_city": {
+      "id": 1,
+      "name": "Teresina",
+      "state": "PI"
+    },
+    "destine_city": {
+      "id": 2,
+      "name": "Fortaleza",
+      "state": "CE"
+    },
+    "departure_time": "2026-07-09T14:00:00Z",
+    "available_spots": 3,
+    "status": "open",
+    "total_distance_km": 340.5,
+    "total_duration_min": 280.0,
+    "cost": {
+      "trip_id": 1,
+      "price_per_km": "1.00",
+      "distance_km_snapshot": 340.5,
+      "total_cost": "340.50",
+      "created_at": "2026-07-09T12:00:00Z"
+    }
+  }
+}
+```
+
+### TripRoute
+
+```json
+{
+  "id": 1,
+  "line_trip": {
+    "type": "LineString",
+    "coordinates": [
+      [-42.801, -5.089],
+      [-38.543, -3.717]
+    ]
+  },
+  "total_distance_km": 340.5,
+  "total_duration_min": 280.0,
+  "status": "open",
+  "updated_at": "2026-07-09T12:10:00Z"
 }
 ```
 
@@ -131,14 +204,20 @@ parte do contrato atual.
   },
   "destine_city": {
     "id": 2,
-    "name": "Parnaiba",
-    "state": "PI"
+    "name": "Fortaleza",
+    "state": "CE"
   },
-  "departure_time": "2026-07-08T14:00:00Z",
+  "departure_time": "2026-07-09T14:00:00Z",
   "available_spots": 3,
   "available_seats": 2,
   "status": "open",
-  "line_trip": {},
+  "line_trip": {
+    "type": "LineString",
+    "coordinates": [
+      [-42.801, -5.089],
+      [-38.543, -3.717]
+    ]
+  },
   "total_distance_km": 340.5,
   "total_duration_min": 280.0,
   "cost": {
@@ -146,43 +225,134 @@ parte do contrato atual.
     "price_per_km": "1.00",
     "distance_km_snapshot": 340.5,
     "total_cost": "340.50",
-    "created_at": "2026-07-08T12:00:00Z"
+    "created_at": "2026-07-09T12:00:00Z"
   },
-  "stops": [],
+  "stops": [
+    {
+      "id": 100,
+      "order": 0,
+      "location": {
+        "id": 10,
+        "name": "Rodoviaria de Teresina",
+        "formatted_address": "Av. Presidente Getulio Vargas, Teresina - PI",
+        "latitude": -5.089,
+        "longitude": -42.801,
+        "city": {
+          "id": 1,
+          "name": "Teresina",
+          "state": "PI"
+        }
+      }
+    },
+    {
+      "id": 101,
+      "order": 1,
+      "location": {
+        "id": 20,
+        "name": "Rodoviaria de Fortaleza",
+        "formatted_address": "Av. Borges de Melo, Fortaleza - CE",
+        "latitude": -3.717,
+        "longitude": -38.543,
+        "city": {
+          "id": 2,
+          "name": "Fortaleza",
+          "state": "CE"
+        }
+      }
+    }
+  ],
   "started_at": null,
   "finished_at": null,
-  "created_at": "2026-07-08T12:00:00Z",
-  "updated_at": "2026-07-08T12:10:00Z"
+  "created_at": "2026-07-09T12:00:00Z",
+  "updated_at": "2026-07-09T12:00:00Z"
 }
 ```
 
-### TripListItem
+### Booking
 
 ```json
 {
   "id": 1,
-  "origin_city": {
-    "id": 1,
-    "name": "Teresina",
-    "state": "PI"
+  "trip": 1,
+  "passenger": 9,
+  "pickup_stop": {
+    "id": 100,
+    "order": 0,
+    "location": {
+      "id": 10,
+      "name": "Rodoviaria de Teresina",
+      "formatted_address": "Av. Presidente Getulio Vargas, Teresina - PI",
+      "latitude": -5.089,
+      "longitude": -42.801,
+      "city": {
+        "id": 1,
+        "name": "Teresina",
+        "state": "PI"
+      }
+    }
   },
-  "destine_city": {
-    "id": 2,
-    "name": "Parnaiba",
-    "state": "PI"
+  "dropoff_stop": {
+    "id": 101,
+    "order": 1,
+    "location": {
+      "id": 20,
+      "name": "Rodoviaria de Fortaleza",
+      "formatted_address": "Av. Borges de Melo, Fortaleza - CE",
+      "latitude": -3.717,
+      "longitude": -38.543,
+      "city": {
+        "id": 2,
+        "name": "Fortaleza",
+        "state": "CE"
+      }
+    }
   },
-  "departure_time": "2026-07-08T14:00:00Z",
-  "available_spots": 3,
-  "status": "open",
-  "total_distance_km": 340.5,
-  "total_duration_min": 280.0,
-  "cost": {
-    "trip_id": 1,
-    "price_per_km": "1.00",
-    "distance_km_snapshot": 340.5,
-    "total_cost": "340.50",
-    "created_at": "2026-07-08T12:00:00Z"
-  }
+  "status": "pending",
+  "created_at": "2026-07-09T12:00:00Z",
+  "confirmed_at": null
+}
+```
+
+### DriverLocation
+
+```json
+{
+  "trip_id": 1,
+  "latitude": -5.089,
+  "longitude": -42.801,
+  "updated_at": "2026-07-09T14:05:00Z"
+}
+```
+
+### TripFareSplit
+
+```json
+{
+  "trip_id": 1,
+  "total_cost": "340.50",
+  "covered_amount": "170.25",
+  "driver_amount": "170.25",
+  "confirmed_passengers": 1,
+  "split": [
+    {
+      "booking_id": 10,
+      "passenger_id": 9,
+      "amount": "170.25"
+    }
+  ]
+}
+```
+
+### TripFareQuote
+
+```json
+{
+  "trip_id": 1,
+  "pickup_stop_id": 100,
+  "dropoff_stop_id": 101,
+  "estimated_amount": "85.13",
+  "total_cost": "340.50",
+  "current_confirmed_passengers": 1
 }
 ```
 
@@ -202,7 +372,7 @@ parte do contrato atual.
 
 ### GET `/api/trips/search/`
 
-Busca viagens abertas para passageiro.
+Busca viagens abertas.
 
 Query params:
 
@@ -213,42 +383,14 @@ Query params:
 
 Resposta `200`:
 
-```json
-[
-  {
-    "id": 1,
-    "origin_city": {
-      "id": 1,
-      "name": "Teresina",
-      "state": "PI"
-    },
-    "destine_city": {
-      "id": 2,
-      "name": "Parnaiba",
-      "state": "PI"
-    },
-    "departure_time": "2026-07-08T14:00:00Z",
-    "available_spots": 3,
-    "status": "open",
-    "total_distance_km": 340.5,
-    "total_duration_min": 280.0,
-    "cost": {
-      "trip_id": 1,
-      "price_per_km": "1.00",
-      "distance_km_snapshot": 340.5,
-      "total_cost": "340.50",
-      "created_at": "2026-07-08T12:00:00Z"
-    }
-  }
-]
-```
+- lista de `TripListItem`
 
 Observacoes:
 
+- So retorna trips com `status=open`.
 - Se `date_start` e `date_end` vierem, aplica `departure_time__range`.
 - Se vier apenas `date_start`, aplica `departure_time__gte=date_start`.
-- Se nenhum vier, filtra viagens a partir de `timezone.now()`.
-- So retorna trips com `status=open`.
+- Se nenhum vier, filtra trips a partir de `timezone.now()`.
 
 ### POST `/api/trips/`
 
@@ -260,7 +402,7 @@ Body:
 {
   "origin_city_id": 1,
   "destine_city_id": 2,
-  "departure_time": "2026-07-08T14:00:00Z",
+  "departure_time": "2026-07-09T14:00:00Z",
   "available_spots": 3,
   "origin_location_id": 10,
   "destination_location_id": 20,
@@ -270,46 +412,13 @@ Body:
 
 Resposta `201`:
 
-```json
-{
-  "id": 1,
-  "driver": 5,
-  "origin_city": {
-    "id": 1,
-    "name": "Teresina",
-    "state": "PI"
-  },
-  "destine_city": {
-    "id": 2,
-    "name": "Parnaiba",
-    "state": "PI"
-  },
-  "departure_time": "2026-07-08T14:00:00Z",
-  "available_spots": 3,
-  "available_seats": 3,
-  "status": "open",
-  "line_trip": {},
-  "total_distance_km": 340.5,
-  "total_duration_min": 280.0,
-  "cost": {
-    "trip_id": 1,
-    "price_per_km": "1.00",
-    "distance_km_snapshot": 340.5,
-    "total_cost": "340.50",
-    "created_at": "2026-07-08T12:00:00Z"
-  },
-  "stops": [],
-  "started_at": null,
-  "finished_at": null,
-  "created_at": "2026-07-08T12:00:00Z",
-  "updated_at": "2026-07-08T12:00:00Z"
-}
-```
+- payload `TripDetail`
 
 Observacoes:
 
 - `intermediate_location_ids` e opcional e default `[]`.
 - O motorista nao vem do body; vem de `request.user.driver_profile`.
+- A criacao da trip tambem calcula rota e cria `TripCost`.
 
 ### GET `/api/bookings/<booking_id>/messages/`
 
@@ -463,23 +572,35 @@ Observacoes:
 
 ### GET `/api/trips/<trip_id>/`
 
-Retorna o detalhe da viagem.
+Resposta `200`:
 
-Params:
+- lista de `MyTripItem`
 
-- `trip_id` `int` obrigatorio na URL
+Observacoes:
+
+- Cada item vem com `role`, que pode ser `driver` ou `passenger`.
+- Como `passenger`, o usuario entra apenas em trips onde tem `Booking` com `status=confirmed`.
+- O retorno e ordenado por `trip.departure_time`.
+
+### GET `/api/trips/<trip_id>/`
+
+Retorna o detalhe completo da viagem.
 
 Resposta `200`:
 
 - payload `TripDetail`
 
+### GET `/api/trips/<trip_id>/route/`
+
+Retorna apenas os dados de rota da trip.
+
+Resposta `200`:
+
+- payload `TripRoute`
+
 ### GET `/api/trips/<trip_id>/cost/`
 
 Retorna o snapshot fixo de custo da viagem.
-
-Params:
-
-- `trip_id` `int` obrigatorio na URL
 
 Resposta `200`:
 
@@ -488,49 +609,26 @@ Resposta `200`:
 Observacoes:
 
 - O custo e criado no `POST /api/trips/`.
-- O custo usa a rota publicada pelo motorista e o `PRICE_PER_KM` vigente.
-- O custo fixo nao muda depois que uma reserva e aceita.
+- O custo usa a rota e o `PRICE_PER_KM` vigente naquele momento.
+- O custo fixo nao muda depois, mesmo se a rota for recalculada.
 
 ### GET `/api/trips/<trip_id>/fare-split/`
 
 Retorna o rateio atual entre passageiros confirmados e motorista.
 
-Params:
-
-- `trip_id` `int` obrigatorio na URL
-
 Resposta `200`:
 
-```json
-{
-  "trip_id": 1,
-  "total_cost": "340.50",
-  "covered_amount": "170.25",
-  "driver_amount": "170.25",
-  "confirmed_passengers": 1,
-  "split": [
-    {
-      "booking_id": 10,
-      "passenger_id": 9,
-      "amount": "170.25"
-    }
-  ]
-}
-```
+- payload `TripFareSplit`
 
 Observacoes:
 
-- Cada trecho da rota e dividido entre o motorista e passageiros confirmados
-  que ocupam aquele trecho.
-- Trechos sem passageiro confirmado ficam integralmente com o motorista.
+- `covered_amount` e a soma cobrada dos passageiros confirmados.
+- `driver_amount` e a parte restante atribuida ao motorista.
+- Cada trecho da rota e dividido entre motorista e passageiros que ocupam aquele trecho.
 
 ### GET `/api/trips/<trip_id>/fare-quote/`
 
-Retorna o valor estimado para um passageiro antes de solicitar reserva.
-
-Params:
-
-- `trip_id` `int` obrigatorio na URL
+Retorna a cotacao estimada para um passageiro antes do booking.
 
 Query params:
 
@@ -539,163 +637,68 @@ Query params:
 
 Resposta `200`:
 
-```json
-{
-  "trip_id": 1,
-  "pickup_stop_id": 100,
-  "dropoff_stop_id": 101,
-  "estimated_amount": "85.13",
-  "total_cost": "340.50",
-  "current_confirmed_passengers": 1
-}
-```
+- payload `TripFareQuote`
 
 Observacoes:
 
-- Retorna `400` se o ponto de embarque nao vier antes do desembarque.
-- A cotacao usa a rota publicada e os passageiros ja confirmados.
+- A cotacao usa os passageiros confirmados atuais e simula a entrada de mais um passageiro.
+- `current_confirmed_passengers` nao inclui o passageiro projetado.
+- Retorna erro de regra se o ponto de embarque nao vier antes do desembarque.
 
 ### POST `/api/trips/<trip_id>/start/`
 
 Inicia a viagem.
 
-Params:
-
-- `trip_id` `int` obrigatorio na URL
-
 Body:
 
 - sem body
 
 Resposta `200`:
 
-- payload `TripDetail` atualizado
+- payload `TripDetail`
 
-Exemplo:
+Observacoes:
 
-```json
-{
-  "id": 1,
-  "driver": 5,
-  "origin_city": {
-    "id": 1,
-    "name": "Teresina",
-    "state": "PI"
-  },
-  "destine_city": {
-    "id": 2,
-    "name": "Parnaiba",
-    "state": "PI"
-  },
-  "departure_time": "2026-07-08T14:00:00Z",
-  "available_spots": 3,
-  "available_seats": 1,
-  "status": "in_progress",
-  "line_trip": {},
-  "total_distance_km": 340.5,
-  "total_duration_min": 280.0,
-  "cost": {
-    "trip_id": 1,
-    "price_per_km": "1.00",
-    "distance_km_snapshot": 340.5,
-    "total_cost": "340.50",
-    "created_at": "2026-07-08T12:00:00Z"
-  },
-  "stops": [],
-  "started_at": "2026-07-08T13:40:00Z",
-  "finished_at": null,
-  "created_at": "2026-07-08T12:00:00Z",
-  "updated_at": "2026-07-08T13:40:00Z"
-}
-```
+- Exige motorista dono da trip.
+- So funciona com `status=open` ou `status=full`.
+- Exige ao menos um `Booking` com `status=confirmed`.
+- So pode ser executado entre `departure_time - 1h` e `departure_time + 1h`.
 
 ### POST `/api/trips/<trip_id>/finish/`
 
 Finaliza a viagem.
 
-Params:
-
-- `trip_id` `int` obrigatorio na URL
-
 Body:
 
 - sem body
 
 Resposta `200`:
 
-- payload `TripDetail` atualizado
+- payload `TripDetail`
 
-Exemplo:
+Observacoes:
 
-```json
-{
-  "id": 1,
-  "driver": 5,
-  "origin_city": {
-    "id": 1,
-    "name": "Teresina",
-    "state": "PI"
-  },
-  "destine_city": {
-    "id": 2,
-    "name": "Parnaiba",
-    "state": "PI"
-  },
-  "departure_time": "2026-07-08T14:00:00Z",
-  "available_spots": 3,
-  "available_seats": 1,
-  "status": "finished",
-  "line_trip": {},
-  "total_distance_km": 340.5,
-  "total_duration_min": 280.0,
-  "cost": {
-    "trip_id": 1,
-    "price_per_km": "1.00",
-    "distance_km_snapshot": 340.5,
-    "total_cost": "340.50",
-    "created_at": "2026-07-08T12:00:00Z"
-  },
-  "stops": [],
-  "started_at": "2026-07-08T13:40:00Z",
-  "finished_at": "2026-07-08T18:20:00Z",
-  "created_at": "2026-07-08T12:00:00Z",
-  "updated_at": "2026-07-08T18:20:00Z"
-}
-```
+- Exige motorista dono da trip.
+- So funciona com `status=in_progress`.
 
 ### GET `/api/trips/<trip_id>/location/`
 
 Retorna a ultima localizacao conhecida do motorista.
 
-Params:
-
-- `trip_id` `int` obrigatorio na URL
-
 Resposta `200`:
 
-```json
-{
-  "trip_id": 1,
-  "latitude": -5.089,
-  "longitude": -42.801,
-  "updated_at": "2026-07-08T14:05:00Z"
-}
-```
+- payload `DriverLocation`
 
 Observacoes:
 
-- So funciona quando a trip estiver com `status=in_progress`.
+- So funciona com `status=in_progress`.
 - So pode consultar quem participa da viagem.
 - Participante = motorista da trip ou passageiro com booking `confirmed`.
-- Se a trip ainda nao tiver localizacao registrada, retorna `404`.
+- Se ainda nao existir localizacao salva, o lookup termina em `404`.
 
 ### POST `/api/trips/<trip_id>/location/`
 
 Cria ou atualiza a localizacao atual do motorista.
-
-Params:
-
-- `trip_id` `int` obrigatorio na URL
 
 Body:
 
@@ -708,26 +711,19 @@ Body:
 
 Resposta `200`:
 
-```json
-{
-  "trip_id": 1,
-  "latitude": -5.089,
-  "longitude": -42.801,
-  "updated_at": "2026-07-08T14:05:00Z"
-}
-```
+- payload `DriverLocation`
 
 Observacoes:
 
 - So o motorista dono da trip pode atualizar.
-- So funciona quando a trip estiver com `status=in_progress`.
-- O endpoint faz upsert: cria no primeiro envio e atualiza nos proximos.
+- So funciona com `status=in_progress`.
+- Faz upsert: cria no primeiro envio e atualiza nos proximos.
 - `latitude` deve estar entre `-90` e `90`.
 - `longitude` deve estar entre `-180` e `180`.
 
 ### POST `/api/trips/<trip_id>/reorder/`
 
-Reordena as paradas da viagem.
+Atualiza apenas o `order` dos stops da trip.
 
 Body:
 
@@ -735,7 +731,8 @@ Body:
 {
   "stop_orders": [
     { "stop_id": 100, "order": 0 },
-    { "stop_id": 101, "order": 1 }
+    { "stop_id": 101, "order": 1 },
+    { "stop_id": 102, "order": 2 }
   ]
 }
 ```
@@ -746,11 +743,15 @@ Resposta `204`:
 
 Observacoes:
 
-- So pode ser usado enquanto a trip estiver com `status=open` ou `status=full`.
+- Exige motorista dono da trip.
+- So pode ser usado com `status=open` ou `status=full`.
+- A lista deve incluir todos os stops da viagem, e somente eles.
+- Nao recalcula o mapa sozinho; isso acontece em `/recalculate-route/`.
+- A validacao atual exige `order` unico, mas nao exige sequencia contigua.
 
 ### POST `/api/trips/<trip_id>/recalculate-route/`
 
-Recalcula rota e mapa da viagem.
+Recalcula a rota da trip com base na ordem atual dos stops.
 
 Body:
 
@@ -762,11 +763,14 @@ Resposta `200`:
 
 Observacoes:
 
-- So pode ser usado enquanto a trip estiver com `status=open` ou `status=full`.
+- Exige motorista dono da trip.
+- So pode ser usado com `status=open` ou `status=full`.
+- Atualiza `line_trip`, `total_distance_km`, `total_duration_min` e `route_legs`.
+- Nao recria `TripCost`.
 
 ### GET `/api/trips/<trip_id>/booking-requests/`
 
-Lista booking requests da viagem para o motorista.
+Lista booking requests da viagem na visao do motorista.
 
 Query params:
 
@@ -776,50 +780,12 @@ Query params:
 
 Resposta `200`:
 
-```json
-[
-  {
-    "id": 1,
-    "trip": 1,
-    "passenger": 9,
-    "pickup_stop": {
-      "id": 100,
-      "order": 0,
-      "location": {
-        "id": 10,
-        "name": "Rodoviaria",
-        "formatted_address": "Av. ...",
-        "latitude": -5.09,
-        "longitude": -42.8,
-        "city": {
-          "id": 1,
-          "name": "Teresina",
-          "state": "PI"
-        }
-      }
-    },
-    "dropoff_stop": {
-      "id": 101,
-      "order": 1,
-      "location": {
-        "id": 20,
-        "name": "Destino",
-        "formatted_address": "Rua ...",
-        "latitude": -2.9,
-        "longitude": -41.77,
-        "city": {
-          "id": 2,
-          "name": "Parnaiba",
-          "state": "PI"
-        }
-      }
-    },
-    "status": "pending",
-    "created_at": "2026-07-08T12:00:00Z",
-    "confirmed_at": null
-  }
-]
-```
+- lista de `Booking`
+
+Observacoes:
+
+- Exige motorista dono da trip.
+- Sem query param, filtra `pending`.
 
 ### POST `/api/bookings/`
 
@@ -841,7 +807,9 @@ Resposta `201`:
 
 Observacoes:
 
-- So cria booking request quando a trip estiver com `status=open`.
+- So cria request quando a trip estiver com `status=open`.
+- `pickup_stop` precisa vir antes de `dropoff_stop`.
+- A trip precisa ter vaga disponivel no momento da criacao.
 
 ### GET `/api/bookings/mine/`
 
@@ -849,96 +817,53 @@ Lista reservas do passageiro autenticado.
 
 Resposta `200`:
 
-```json
-[
-  {
-    "id": 1,
-    "trip": 1,
-    "passenger": 9,
-    "pickup_stop": {
-      "id": 100,
-      "order": 0,
-      "location": {
-        "id": 10,
-        "name": "Rodoviaria",
-        "formatted_address": "Av. ...",
-        "latitude": -5.09,
-        "longitude": -42.8,
-        "city": {
-          "id": 1,
-          "name": "Teresina",
-          "state": "PI"
-        }
-      }
-    },
-    "dropoff_stop": {
-      "id": 101,
-      "order": 1,
-      "location": {
-        "id": 20,
-        "name": "Destino",
-        "formatted_address": "Rua ...",
-        "latitude": -2.9,
-        "longitude": -41.77,
-        "city": {
-          "id": 2,
-          "name": "Parnaiba",
-          "state": "PI"
-        }
-      }
-    },
-    "status": "pending",
-    "created_at": "2026-07-08T12:00:00Z",
-    "confirmed_at": null
-  }
-]
-```
+- lista de `Booking`
 
 ### POST `/api/bookings/<booking_id>/cancel/`
 
 Cancela uma reserva do passageiro.
 
-Params:
-
-- `booking_id` `int` obrigatorio na URL
-
 Resposta `200`:
 
-- payload `Booking` atualizado
+- payload `Booking`
+
+Observacoes:
+
+- So o passageiro dono do booking pode cancelar.
+- So cancela bookings com `status=pending`.
+- O status resultante e `cancelled`.
 
 ### POST `/api/bookings/<booking_id>/accept/`
 
 Aceita uma solicitacao de reserva.
 
-Params:
-
-- `booking_id` `int` obrigatorio na URL
-
 Resposta `200`:
 
-- payload `Booking` atualizado
+- payload `Booking`
 
 Observacoes:
 
+- Exige motorista dono da trip.
 - So aceita requests pendentes.
 - So pode ser usado enquanto a trip estiver com `status=open` ou `status=full`.
+- Ao aceitar, o booking vira `confirmed`.
+- Ao aceitar, a rota da trip e recalculada.
+- Se a ultima vaga for ocupada, a trip vira `full`.
 
 ### POST `/api/bookings/<booking_id>/reject/`
 
 Recusa uma solicitacao de reserva.
 
-Params:
-
-- `booking_id` `int` obrigatorio na URL
-
 Resposta `200`:
 
-- payload `Booking` atualizado
+- payload `Booking`
 
 Observacoes:
 
+- Exige motorista dono da trip.
 - So recusa requests pendentes.
 - So pode ser usado enquanto a trip estiver com `status=open` ou `status=full`.
+- O status resultante e `rejected`.
 
 ### GET `/api/cities/search/`
 
@@ -964,28 +889,19 @@ Resposta `200`:
 
 Lista locations de uma cidade.
 
-Params:
-
-- `city_id` `int` obrigatorio na URL
-
 Resposta `200`:
 
-```json
-[
-  {
-    "id": 10,
-    "name": "Rodoviaria",
-    "formatted_address": "Av. ...",
-    "latitude": -5.09,
-    "longitude": -42.8,
-    "city": {
-      "id": 1,
-      "name": "Teresina",
-      "state": "PI"
-    }
-  }
-]
-```
+- lista de `Location`
+
+## Regras gerais observadas no codigo
+
+- As views usam `AllowAny`, mas varias acoes dependem de `request.user`.
+- Acoes de motorista chamam `_get_driver_profile(request)`.
+- `driver` e `passenger` saem como IDs brutos.
+- `available_seats` e calculado dinamicamente.
+- `TripDetail` e `TripListItem` incluem `cost`.
+- `GET /api/trips/mine/` mistura viagens do usuario como motorista e como passageiro confirmado.
+- `GET /api/trips/<trip_id>/route/` expoe um payload mais enxuto de rota que `TripDetail`.
 
 ## Regras e comportamento observados no codigo
 
