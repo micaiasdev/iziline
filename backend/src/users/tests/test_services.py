@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 
 from users.models import User
 from users.services import user_create
+from trip.models import ProfileDriver
 
 
 @pytest.fixture
@@ -23,6 +24,7 @@ def test_user_create_hashes_password(db, valid_data):
     assert user.email == "ana@example.com"
     assert user.password != "senha12345"
     assert user.check_password("senha12345")
+    assert ProfileDriver.objects.filter(user=user, is_verified=True).exists()
 
 
 def test_user_create_duplicate_email_raises(db, valid_data):

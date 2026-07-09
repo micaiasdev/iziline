@@ -3,6 +3,7 @@ from rest_framework.test import APIClient
 
 from users.models import User
 from users.services import user_create
+from trip.models import ProfileDriver
 
 
 @pytest.fixture
@@ -27,7 +28,8 @@ def test_register_creates_user(db, client, register_payload):
     assert resp.status_code == 201
     assert resp.data["email"] == "novo@example.com"
     assert "password" not in resp.data
-    assert User.objects.filter(email="novo@example.com").exists()
+    user = User.objects.get(email="novo@example.com")
+    assert ProfileDriver.objects.filter(user=user, is_verified=True).exists()
 
 
 def test_register_duplicate_email_returns_400(db, client, register_payload):
