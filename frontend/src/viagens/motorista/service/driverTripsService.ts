@@ -1,4 +1,9 @@
-import type { TripDetail, TripFareOverview } from "../../../types/trip";
+import type {
+  MyTripItem,
+  TripDetail,
+  TripFareOverview,
+  TripListItem,
+} from "../../../types/trip";
 import { apiClient } from "../../../app/services/apiClient";
 import { buildApiError } from "../../../app/services/apiError";
 import { listMockDriverTrips, getMockDriverTrip } from "../mocks/driver-trips.mock";
@@ -9,9 +14,38 @@ const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 
 export type DriverTripSummary = TripDetail & { pendingRequestsCount: number };
 
-// Lista as viagens do motorista logado. Pendência conhecida do backend: o
-// contrato (api-contract-trip.md) não tem um endpoint "minhas viagens" — no
-// modo mock, refletimos as viagens criadas nesta sessão (ver driver-trips.mock).
+export async function listMyTrips(): Promise<MyTripItem[]> {
+  if (USE_MOCK) {
+    return listMockDriverTrips().map((trip) => ({
+      role: "driver",
+      trip: toTripListItem(trip),
+    }));
+  }
+
+  try {
+    const { data } = await apiClient.get<MyTripItem[]>("/api/trips/mine/");
+    return data;
+  } catch (error) {
+    throw buildApiError(error, "N\u00e3o foi poss\u00edvel carregar suas viagens.");
+  }
+}
+
+function toTripListItem(trip: TripDetail): TripListItem {
+  return {
+    id: trip.id,
+    origin_city: trip.origin_city,
+    destine_city: trip.destine_city,
+    departure_time: trip.departure_time,
+    available_spots: trip.available_spots,
+    status: trip.status,
+    total_distance_km: trip.total_distance_km,
+    total_duration_min: trip.total_duration_min,
+    cost: trip.cost,
+  };
+}
+
+// Resumo legado de viagens do motorista. A aba "Viagens" usa listMyTrips,
+// mas esta funcao segue disponivel para fluxos que dependem de pendencias.
 export async function listDriverTrips(): Promise<DriverTripSummary[]> {
   if (USE_MOCK) {
     return listMockDriverTrips().map((trip) => ({

@@ -85,6 +85,13 @@ export type TripListItem = {
   cost: TripCost | null;
 };
 
+export type MyTripRole = "driver" | "passenger";
+
+export type MyTripItem = {
+  role: MyTripRole;
+  trip: TripListItem;
+};
+
 // Detalhe completo (TripDetailOutputSerializer).
 export type TripDetail = {
   id: number;
