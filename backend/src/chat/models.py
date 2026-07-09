@@ -7,6 +7,15 @@ class Message(models.Model):
         'trip.Trip',
         on_delete=models.CASCADE,
         related_name='messages',
+        null=True,
+        blank=True,
+    )
+    booking = models.ForeignKey(
+        'trip.Booking',
+        on_delete=models.CASCADE,
+        related_name='messages',
+        null=True,
+        blank=True,
     )
     sender = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -18,6 +27,25 @@ class Message(models.Model):
 
     class Meta:
         ordering = ['sent_at']  # cronológico — mais antigas primeiro
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    (
+                        models.Q(trip__isnull=False)
+                        & models.Q(booking__isnull=True)
+                    )
+                    | (
+                        models.Q(trip__isnull=True)
+                        & models.Q(booking__isnull=False)
+                    )
+                ),
+                name='chat_message_exactly_one_context',
+            ),
+        ]
 
     def __str__(self) -> str:
-        return f"Message {self.id} — {self.sender_id} → trip {self.trip_id} @ {self.sent_at.isoformat()}"
+        if self.booking_id is not None:
+            target = f"booking {self.booking_id}"
+        else:
+            target = f"trip {self.trip_id}"
+        return f"Message {self.id} — {self.sender_id} -> {target} @ {self.sent_at.isoformat()}"
