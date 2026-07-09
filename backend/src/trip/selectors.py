@@ -13,7 +13,7 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import QuerySet
 from django.utils import timezone
 
-from .models import Trip, TripStop, Booking, City, Location, TripCost
+from .models import Trip, TripStop, Booking, City, Location, TripCost, ProfileDriver
 
 
 # ---------------------------------------------------------------------------
@@ -127,6 +127,53 @@ def get_passenger_bookings(passenger_id: int) -> QuerySet[Booking]:
 # ---------------------------------------------------------------------------
 # Selectors de apoio (usados internamente pelos services)
 # ---------------------------------------------------------------------------
+
+
+def get_my_trips(user) -> list[dict]:
+    """
+    Todas as Trips relacionadas a esse usuário — como MOTORISTA (todas
+    as que ele cadastrou) OU como PASSAGEIRO (só as que têm um booking
+    CONFIRMED dele; pending/rejected/cancelled não contam como "virou
+    viagem de verdade" pra ele).
+ 
+    Cada item vem com "role" indicando o papel do usuário NAQUELA trip
+    específica — útil pro frontend distinguir "suas viagens como
+    motorista" de "suas viagens como passageiro" (ou juntar tudo numa
+    lista só, ordenada por data, se preferir).
+ 
+    Retorna: [{"trip": Trip, "role": "driver" | "passenger"}, ...]
+    ordenado por departure_time.
+    """
+    trips_by_id: dict[int, dict] = {}
+ 
+    try:
+        driver_profile = user.driver_profile
+    except ProfileDriver.DoesNotExist:
+        driver_profile = None
+ 
+    if driver_profile is not None:
+        driver_trips = Trip.objects.filter(driver=driver_profile).select_related(
+            "origin_city", "destine_city"
+        )
+        for trip in driver_trips:
+            trips_by_id[trip.id] = {"trip": trip, "role": "driver"}
+ 
+    passenger_trips = (
+        Trip.objects.filter(
+            bookings__passenger=user, bookings__status=Booking.Status.CONFIRMED
+        )
+        .select_related("origin_city", "destine_city")
+        .distinct()
+    )
+    for trip in passenger_trips:
+        # setdefault: se por acaso já apareceu como driver (não deveria
+        # acontecer na prática), não sobrescreve o role
+        trips_by_id.setdefault(trip.id, {"trip": trip, "role": "passenger"})
+ 
+    results = list(trips_by_id.values())
+    results.sort(key=lambda item: item["trip"].departure_time)
+    return results
+ 
 
 def get_trip_stops(trip: Trip) -> QuerySet[TripStop]:
     return trip.stops.select_related("location", "location__city").order_by("order")

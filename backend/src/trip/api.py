@@ -197,6 +197,18 @@ class TripCreateApi(APIView):
         trip = create_trip(driver=driver, **data)
         return Response(self.OutputSerializer(trip).data, status=status.HTTP_201_CREATED)
 
+class MyTripsApi(APIView):
+
+    permission_classes = [AllowAny]
+ 
+    class OutputSerializer(serializers.Serializer):
+        role = serializers.CharField()
+        trip = TripListOutputSerializer()
+ 
+    def get(self, request):
+        results = selectors.get_my_trips(request.user)
+        return Response(self.OutputSerializer(results, many=True).data)
+ 
 
 class TripDetailApi(APIView):
     permission_classes = [AllowAny]
