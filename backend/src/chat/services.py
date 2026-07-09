@@ -1,24 +1,31 @@
-from django.shortcuts import get_object_or_404
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from __future__ import annotations
+
+from django.db import transaction
 
 from chat.models import Message
-from chat.selectors import is_trip_participant
-from trip.models import Trip
+from chat.selectors import _assert_booking_chat_access, _assert_trip_chat_access
+from trip.models import Booking, Trip
 
 
-def message_send(*, trip_id, sender, content):
-    """Cria e persiste uma mensagem no chat da viagem.
+@transaction.atomic
+def message_send_for_booking(*, booking_id: int, sender, content: str) -> Message:
+    booking = Booking.objects.select_related("trip__driver__user", "passenger").get(pk=booking_id)
+    _assert_booking_chat_access(booking=booking, user=sender)
 
-    Levanta Http404 se a viagem não existir.
-    Levanta PermissionDenied se o sender não for participante da viagem.
-    Levanta ValidationError se a viagem estiver cancelada.
-    """
-    trip = get_object_or_404(Trip.objects.select_related("driver"), id=trip_id)
+    return Message.objects.create(
+        booking=booking,
+        sender=sender,
+        content=content,
+    )
 
-    if not is_trip_participant(trip=trip, user=sender):
-        raise PermissionDenied("Apenas participantes da viagem podem enviar mensagens.")
 
-    if trip.is_cancelled:
-        raise ValidationError({"trip": "Não é possível enviar mensagens em uma viagem cancelada."})
+@transaction.atomic
+def message_send_for_trip(*, trip_id: int, sender, content: str) -> Message:
+    trip = Trip.objects.select_related("driver__user").get(pk=trip_id)
+    _assert_trip_chat_access(trip=trip, user=sender)
 
-    return Message.objects.create(trip=trip, sender=sender, content=content)
+    return Message.objects.create(
+        trip=trip,
+        sender=sender,
+        content=content,
+    )

@@ -1,0 +1,20 @@
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  background: var(--page);
+}
+
+.app-shell__content {
+  flex: 1;
+  min-width: 0;
+  /* Espaço para a bottom nav fixa (56px + safe area) não cobrir o conteúdo. */
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+}
+
+/* As páginas foram feitas como tela cheia (min-height: 100dvh); dentro do shell
+   preenchem apenas a área de conteúdo, sem forçar a altura do viewport (o fundo
+   do shell já cobre a tela). Especificidade acima da regra das páginas. */
+.app-shell > .app-shell__content > * {
+  min-height: 0;
+}

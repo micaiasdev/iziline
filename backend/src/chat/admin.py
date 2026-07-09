@@ -5,9 +5,9 @@ from .models import Message
 
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = ('id', 'trip', 'sender', 'sent_at', 'short_content')
+    list_display = ('id', 'trip', 'booking', 'sender', 'sent_at', 'short_content')
     list_filter = ('sent_at',)
-    search_fields = ('trip__origin', 'trip__destination', 'sender__username', 'content')
+    search_fields = ('sender__email', 'sender__full_name', 'content')
     readonly_fields = ('sent_at',)
 
     def short_content(self, obj):
