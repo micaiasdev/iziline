@@ -29,7 +29,7 @@ export function TopBar() {
           <span>Planos</span>
         </Link>
 
-        <button
+  {/*       <button
           type="button"
           className="top-bar__bell"
           aria-label="Notificações — em breve"
@@ -38,7 +38,7 @@ export function TopBar() {
           title="Em breve"
         >
           <Bell size={22} aria-hidden="true" />
-        </button>
+        </button> */}
 
         <button
           type="button"
