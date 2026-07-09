@@ -11,6 +11,8 @@ urlpatterns = [
     # Trip 
     path("trips/", api.TripCreateApi.as_view(), name="create-trip"),
     path("trips/<int:trip_id>/", api.TripDetailApi.as_view(), name="trip-detail"),
+    path("trips/mine/", api.MyTripsApi.as_view(), name="my-trips"),
+    path("trips/<int:trip_id>/route/", api.TripRouteApi.as_view(), name="trip-route"),
     path("trips/<int:trip_id>/cost/", api.TripCostDetailApi.as_view(), name="trip-cost-detail"),
     path("trips/<int:trip_id>/fare-split/", api.TripFareSplitApi.as_view(), name="trip-fare-split"),
     path("trips/<int:trip_id>/fare-quote/", api.TripFareQuoteApi.as_view(), name="trip-fare-quote"),
