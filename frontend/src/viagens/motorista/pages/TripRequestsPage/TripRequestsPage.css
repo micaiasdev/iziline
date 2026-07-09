@@ -208,6 +208,32 @@
   gap: 10px;
 }
 
+.booking-card__chat-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  width: 100%;
+  border-radius: 8px;
+  padding: 0 16px;
+  background: var(--teal-wash);
+  border: 1px solid #cfe3e1;
+  color: var(--teal-deep);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.18s ease;
+}
+
+.booking-card__chat-link:hover {
+  background: #dcebe9;
+}
+
+.booking-card__chat-link:focus-visible {
+  outline: 3px solid rgba(79, 143, 140, 0.28);
+  outline-offset: 2px;
+}
+
 .button {
   min-height: 44px;
   width: 100%;

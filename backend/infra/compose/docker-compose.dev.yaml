@@ -1,0 +1,24 @@
+services:
+  backend:
+    build:
+      context: ../../
+      dockerfile: src/Dockerfile
+      target: development
+
+    container_name: django_backend_dev
+
+    command: >
+      sh -c "
+      python manage.py migrate &&
+      python manage.py runserver 0.0.0.0:8000
+      "
+
+    env_file:
+      - ../../src/.env.dev
+
+    volumes:
+      - ../../src:/app
+      - ../../src/.env.dev:/app/.env:ro
+
+    ports:
+      - "8000:8000"

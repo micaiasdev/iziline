@@ -8,15 +8,17 @@ urlpatterns = [
     # Busca (passageiro)
     path("trips/search/", api.TripSearchApi.as_view(), name="search-trips"),
 
-    # Trip (motorista)
+    # Trip 
     path("trips/", api.TripCreateApi.as_view(), name="create-trip"),
     path("trips/<int:trip_id>/", api.TripDetailApi.as_view(), name="trip-detail"),
     path("trips/mine/", api.MyTripsApi.as_view(), name="my-trips"),
     path("trips/<int:trip_id>/route/", api.TripRouteApi.as_view(), name="trip-route"),
     path("trips/<int:trip_id>/cost/", api.TripCostDetailApi.as_view(), name="trip-cost-detail"),
     path("trips/<int:trip_id>/fare-split/", api.TripFareSplitApi.as_view(), name="trip-fare-split"),
+    path("trips/<int:trip_id>/fare-quote/", api.TripFareQuoteApi.as_view(), name="trip-fare-quote"),
     path("trips/<int:trip_id>/start/", api.TripStartApi.as_view(), name="start-trip"),
     path("trips/<int:trip_id>/finish/", api.TripFinishApi.as_view(), name="finish-trip"),
+    path("trips/<int:trip_id>/location/", api.TripDriverLocationApi.as_view(), name="trip-driver-location"),
     path("trips/<int:trip_id>/reorder/", api.TripReorderStopsApi.as_view(), name="reorder-trip-stops"),
     path("trips/<int:trip_id>/recalculate-route/", api.TripRecalculateRouteApi.as_view(), name="recalculate-route"),
     path("trips/<int:trip_id>/booking-requests/", api.TripBookingRequestListApi.as_view(), name="trip-booking-requests"),

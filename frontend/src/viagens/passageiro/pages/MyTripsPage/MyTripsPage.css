@@ -1,0 +1,302 @@
+.passenger-my-trips-page {
+  box-sizing: border-box;
+  min-height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+  background: var(--page);
+  color: var(--ink);
+  padding: 20px 16px 32px;
+}
+
+.passenger-my-trips-page *,
+.passenger-my-trips-page *::before,
+.passenger-my-trips-page *::after {
+  box-sizing: border-box;
+}
+
+.passenger-my-trips-shell {
+  display: grid;
+  gap: 18px;
+  width: min(100%, 1040px);
+  margin: 0 auto;
+}
+
+.passenger-my-trips-header {
+  display: grid;
+  gap: 6px;
+}
+
+.passenger-my-trips-header p {
+  color: var(--teal-deep);
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.passenger-my-trips-header h1 {
+  color: var(--ink);
+  font-size: 1.375rem;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.passenger-my-trips-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.passenger-my-trips-tabs__item {
+  min-height: 42px;
+  padding: 0 16px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.passenger-my-trips-tabs__item:hover,
+.passenger-my-trips-tabs__item.active {
+  color: var(--teal-deep);
+  background: var(--teal-wash);
+  border-color: rgba(79, 143, 140, 0.38);
+}
+
+.passenger-my-trips-tabs__item:focus-visible,
+.passenger-booking-card__cancel-button:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+.passenger-my-trips-error {
+  color: var(--danger);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.passenger-my-trips-list {
+  display: grid;
+  gap: 12px;
+}
+
+.passenger-booking-card,
+.passenger-my-trips-empty {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.passenger-booking-card {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  padding: 16px;
+}
+
+.passenger-booking-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.passenger-booking-card__header > span:last-child {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.passenger-booking-status {
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 5px 10px;
+}
+
+.passenger-booking-status--pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.passenger-booking-status--confirmed {
+  background: var(--teal-wash);
+  color: var(--teal-deep);
+}
+
+.passenger-booking-status--rejected,
+.passenger-booking-status--cancelled {
+  background: #fdecea;
+  color: var(--danger);
+}
+
+.passenger-booking-card__route,
+.passenger-booking-card__meta {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.passenger-booking-card__route {
+  grid-template-columns: 1fr 1fr;
+}
+
+.passenger-booking-card__meta {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.passenger-booking-card__meta--secondary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.passenger-booking-card span,
+.passenger-booking-card__note,
+.passenger-my-trips-empty p {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.passenger-booking-card strong,
+.passenger-my-trips-empty strong {
+  color: var(--ink);
+  display: block;
+  font-size: 1rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.passenger-booking-card__note {
+  margin: 0;
+}
+
+.passenger-booking-card__actions {
+  display: grid;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.passenger-booking-card__track-link {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  background: var(--teal-deep);
+  border: 1px solid var(--teal-deep);
+  border-radius: 8px;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.passenger-booking-card__track-link:hover {
+  background: #346361;
+  border-color: #346361;
+}
+
+.passenger-booking-card__track-link:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+.passenger-booking-card__chat-link {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  background: var(--teal-wash);
+  border: 1px solid #cfe3e1;
+  border-radius: 8px;
+  color: var(--teal-deep);
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.passenger-booking-card__chat-link:hover {
+  background: #dcebe9;
+}
+
+.passenger-booking-card__chat-link:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+.passenger-booking-card__cancel-button {
+  justify-self: start;
+  min-height: 44px;
+  padding: 0 18px;
+  background: var(--surface);
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.passenger-booking-card__cancel-button:hover {
+  background: #fdecea;
+}
+
+.passenger-booking-card__cancel-error {
+  color: var(--danger);
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.passenger-my-trips-empty {
+  display: grid;
+  gap: 6px;
+  padding: 24px;
+  text-align: center;
+}
+
+.passenger-my-trips-empty p {
+  margin: 0;
+}
+
+@media (min-width: 640px) {
+  .passenger-my-trips-page {
+    padding: 32px 24px;
+  }
+}
+
+@media (max-width: 780px) {
+  .passenger-booking-card__route,
+  .passenger-booking-card__meta,
+  .passenger-booking-card__meta--secondary {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 540px) {
+  .passenger-my-trips-page {
+    padding: 18px 14px;
+  }
+
+  .passenger-booking-card {
+    padding: 16px;
+  }
+
+  .passenger-my-trips-tabs,
+  .passenger-booking-card__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .passenger-my-trips-tabs__item,
+  .passenger-booking-card__cancel-button {
+    width: 100%;
+  }
+}

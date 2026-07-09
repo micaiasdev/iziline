@@ -40,6 +40,38 @@ export type LineString = {
   coordinates: [number, number][];
 };
 
+export type TripCost = {
+  trip_id: number;
+  price_per_km: string;
+  distance_km_snapshot: number;
+  total_cost: string;
+  created_at: string;
+};
+
+export type FareSplitItem = {
+  booking_id: number;
+  passenger_id: number;
+  amount: string;
+};
+
+export type TripFareOverview = {
+  trip_id: number;
+  total_cost: string;
+  covered_amount: string;
+  driver_amount: string;
+  confirmed_passengers: number;
+  split: FareSplitItem[];
+};
+
+export type TripFareQuote = {
+  trip_id: number;
+  pickup_stop_id: number;
+  dropoff_stop_id: number;
+  estimated_amount: string;
+  total_cost: string;
+  current_confirmed_passengers: number;
+};
+
 // Item resumido da busca (TripListOutputSerializer).
 export type TripListItem = {
   id: number;
@@ -50,6 +82,7 @@ export type TripListItem = {
   status: TripStatus;
   total_distance_km: number;
   total_duration_min: number;
+  cost: TripCost | null;
 };
 
 // Detalhe completo (TripDetailOutputSerializer).
@@ -65,6 +98,7 @@ export type TripDetail = {
   line_trip: LineString | null;
   total_distance_km: number;
   total_duration_min: number;
+  cost: TripCost | null;
   stops: TripStop[];
   created_at: string;
   updated_at: string;
@@ -106,4 +140,16 @@ export type Booking = {
   status: BookingStatus;
   created_at: string;
   confirmed_at: string | null;
+};
+
+export type CreateBookingPayload = {
+  trip_id: number;
+  pickup_stop_id: number;
+  dropoff_stop_id: number;
+};
+
+// Enriquecimento usado pela UI de "Minhas reservas" enquanto o backend ainda
+// devolve somente o id da viagem em /api/bookings/mine/.
+export type PassengerBooking = Booking & {
+  trip_summary?: TripListItem;
 };

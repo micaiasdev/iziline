@@ -61,6 +61,18 @@ parte do contrato atual.
 }
 ```
 
+### TripCost
+
+```json
+{
+  "trip_id": 1,
+  "price_per_km": "1.00",
+  "distance_km_snapshot": 340.5,
+  "total_cost": "340.50",
+  "created_at": "2026-07-08T12:00:00Z"
+}
+```
+
 ### Booking
 
 ```json
@@ -129,6 +141,13 @@ parte do contrato atual.
   "line_trip": {},
   "total_distance_km": 340.5,
   "total_duration_min": 280.0,
+  "cost": {
+    "trip_id": 1,
+    "price_per_km": "1.00",
+    "distance_km_snapshot": 340.5,
+    "total_cost": "340.50",
+    "created_at": "2026-07-08T12:00:00Z"
+  },
   "stops": [],
   "started_at": null,
   "finished_at": null,
@@ -156,7 +175,14 @@ parte do contrato atual.
   "available_spots": 3,
   "status": "open",
   "total_distance_km": 340.5,
-  "total_duration_min": 280.0
+  "total_duration_min": 280.0,
+  "cost": {
+    "trip_id": 1,
+    "price_per_km": "1.00",
+    "distance_km_snapshot": 340.5,
+    "total_cost": "340.50",
+    "created_at": "2026-07-08T12:00:00Z"
+  }
 }
 ```
 
@@ -193,7 +219,14 @@ Resposta `200`:
     "available_spots": 3,
     "status": "open",
     "total_distance_km": 340.5,
-    "total_duration_min": 280.0
+    "total_duration_min": 280.0,
+    "cost": {
+      "trip_id": 1,
+      "price_per_km": "1.00",
+      "distance_km_snapshot": 340.5,
+      "total_cost": "340.50",
+      "created_at": "2026-07-08T12:00:00Z"
+    }
   }
 ]
 ```
@@ -246,6 +279,13 @@ Resposta `201`:
   "line_trip": {},
   "total_distance_km": 340.5,
   "total_duration_min": 280.0,
+  "cost": {
+    "trip_id": 1,
+    "price_per_km": "1.00",
+    "distance_km_snapshot": 340.5,
+    "total_cost": "340.50",
+    "created_at": "2026-07-08T12:00:00Z"
+  },
   "stops": [],
   "started_at": null,
   "finished_at": null,
@@ -270,6 +310,88 @@ Params:
 Resposta `200`:
 
 - payload `TripDetail`
+
+### GET `/api/trips/<trip_id>/cost/`
+
+Retorna o snapshot fixo de custo da viagem.
+
+Params:
+
+- `trip_id` `int` obrigatorio na URL
+
+Resposta `200`:
+
+- payload `TripCost`
+
+Observacoes:
+
+- O custo e criado no `POST /api/trips/`.
+- O custo usa a rota publicada pelo motorista e o `PRICE_PER_KM` vigente.
+- O custo fixo nao muda depois que uma reserva e aceita.
+
+### GET `/api/trips/<trip_id>/fare-split/`
+
+Retorna o rateio atual entre passageiros confirmados e motorista.
+
+Params:
+
+- `trip_id` `int` obrigatorio na URL
+
+Resposta `200`:
+
+```json
+{
+  "trip_id": 1,
+  "total_cost": "340.50",
+  "covered_amount": "170.25",
+  "driver_amount": "170.25",
+  "confirmed_passengers": 1,
+  "split": [
+    {
+      "booking_id": 10,
+      "passenger_id": 9,
+      "amount": "170.25"
+    }
+  ]
+}
+```
+
+Observacoes:
+
+- Cada trecho da rota e dividido entre o motorista e passageiros confirmados
+  que ocupam aquele trecho.
+- Trechos sem passageiro confirmado ficam integralmente com o motorista.
+
+### GET `/api/trips/<trip_id>/fare-quote/`
+
+Retorna o valor estimado para um passageiro antes de solicitar reserva.
+
+Params:
+
+- `trip_id` `int` obrigatorio na URL
+
+Query params:
+
+- `pickup_stop_id` `int` obrigatorio
+- `dropoff_stop_id` `int` obrigatorio
+
+Resposta `200`:
+
+```json
+{
+  "trip_id": 1,
+  "pickup_stop_id": 100,
+  "dropoff_stop_id": 101,
+  "estimated_amount": "85.13",
+  "total_cost": "340.50",
+  "current_confirmed_passengers": 1
+}
+```
+
+Observacoes:
+
+- Retorna `400` se o ponto de embarque nao vier antes do desembarque.
+- A cotacao usa a rota publicada e os passageiros ja confirmados.
 
 ### POST `/api/trips/<trip_id>/start/`
 
@@ -310,6 +432,13 @@ Exemplo:
   "line_trip": {},
   "total_distance_km": 340.5,
   "total_duration_min": 280.0,
+  "cost": {
+    "trip_id": 1,
+    "price_per_km": "1.00",
+    "distance_km_snapshot": 340.5,
+    "total_cost": "340.50",
+    "created_at": "2026-07-08T12:00:00Z"
+  },
   "stops": [],
   "started_at": "2026-07-08T13:40:00Z",
   "finished_at": null,
@@ -357,6 +486,13 @@ Exemplo:
   "line_trip": {},
   "total_distance_km": 340.5,
   "total_duration_min": 280.0,
+  "cost": {
+    "trip_id": 1,
+    "price_per_km": "1.00",
+    "distance_km_snapshot": 340.5,
+    "total_cost": "340.50",
+    "created_at": "2026-07-08T12:00:00Z"
+  },
   "stops": [],
   "started_at": "2026-07-08T13:40:00Z",
   "finished_at": "2026-07-08T18:20:00Z",
@@ -364,6 +500,68 @@ Exemplo:
   "updated_at": "2026-07-08T18:20:00Z"
 }
 ```
+
+### GET `/api/trips/<trip_id>/location/`
+
+Retorna a ultima localizacao conhecida do motorista.
+
+Params:
+
+- `trip_id` `int` obrigatorio na URL
+
+Resposta `200`:
+
+```json
+{
+  "trip_id": 1,
+  "latitude": -5.089,
+  "longitude": -42.801,
+  "updated_at": "2026-07-08T14:05:00Z"
+}
+```
+
+Observacoes:
+
+- So funciona quando a trip estiver com `status=in_progress`.
+- So pode consultar quem participa da viagem.
+- Participante = motorista da trip ou passageiro com booking `confirmed`.
+- Se a trip ainda nao tiver localizacao registrada, retorna `404`.
+
+### POST `/api/trips/<trip_id>/location/`
+
+Cria ou atualiza a localizacao atual do motorista.
+
+Params:
+
+- `trip_id` `int` obrigatorio na URL
+
+Body:
+
+```json
+{
+  "latitude": -5.089,
+  "longitude": -42.801
+}
+```
+
+Resposta `200`:
+
+```json
+{
+  "trip_id": 1,
+  "latitude": -5.089,
+  "longitude": -42.801,
+  "updated_at": "2026-07-08T14:05:00Z"
+}
+```
+
+Observacoes:
+
+- So o motorista dono da trip pode atualizar.
+- So funciona quando a trip estiver com `status=in_progress`.
+- O endpoint faz upsert: cria no primeiro envio e atualiza nos proximos.
+- `latitude` deve estar entre `-90` e `90`.
+- `longitude` deve estar entre `-180` e `180`.
 
 ### POST `/api/trips/<trip_id>/reorder/`
 
@@ -635,6 +833,7 @@ Resposta `200`:
 - `available_seats` e calculado dinamicamente por `selectors.get_available_seats`.
 - O endpoint de listagem de booking requests filtra `pending` por padrao.
 - `TripDetail` agora inclui `started_at` e `finished_at`.
+- Existe `DriverLocation`, que guarda apenas a localizacao atual do motorista.
 - Existe uma `TripRouteApi` em `backend/src/trip/api.py`, mas ela nao esta
   exposta em `backend/src/trip/urls.py`, portanto nao faz parte da API ativa.
 
@@ -648,6 +847,8 @@ Resposta `200`:
 - `POST /api/trips/<trip_id>/finish/` exige que o usuario autenticado seja o dono da trip.
 - `finish` so funciona com `status=in_progress`.
 - Ao finalizar, a trip vira `finished` e `finished_at` recebe o horario atual.
+- `GET /api/trips/<trip_id>/location/` e `POST /api/trips/<trip_id>/location/` so funcionam com `status=in_progress`.
+- A localizacao do motorista e acessivel apenas para participantes da viagem.
 
 ## Status e valores relevantes
 

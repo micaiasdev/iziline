@@ -1,16 +1,12 @@
+import type { CitySearchResult } from "../../../types/trip";
+
 export type RideSearchFilters = {
-  origin: string;
-  destination: string;
-  date: string;
+  originCity: CitySearchResult | null;
+  destineCity: CitySearchResult | null;
+  dateStart: string;
+  dateEnd: string;
 };
 
-export type RideSearchResult = {
-  id: number;
-  driverName: string;
-  origin: string;
-  destination: string;
-  departureAt: string;
-  seatsAvailable: number;
-  price: string;
-  carModel?: string;
-};
+export type RideSearchErrors = Partial<
+  Record<keyof RideSearchFilters, string>
+>;

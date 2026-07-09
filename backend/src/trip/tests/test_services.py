@@ -3,7 +3,9 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
-from trip.models import Trip, Booking, TripCost
+from django.core.exceptions import PermissionDenied
+
+from trip.models import Trip, Booking, TripCost, DriverLocation, ProfileDriver
 from trip.services import trip as trip_services
 from trip.services.trip import TripServiceError
 
@@ -59,6 +61,7 @@ class TestCreateTrip:
         assert trip.stops.count() == 3
         ordered_locations = list(trip.stops.order_by("order").values_list("location_id", flat=True))
         assert ordered_locations == [origin_location.id, intermediate_location.id, destination_location.id]
+        assert len(trip.route_legs) == 2
 
     def test_rejects_departure_time_in_the_past(
         self, driver_profile, city_origin, city_destination,
@@ -401,4 +404,78 @@ class TestTripLifecycle:
                 trip_id=open_trip.id,
                 driver_profile_id=driver_profile.id,
                 stop_orders=[(stops[0].id, 0), (stops[-1].id, 1)],
+            )
+
+
+class TestDriverLocation:
+    def _start_trip(self, *, passenger_user, driver_profile, trip):
+        stops = list(trip.stops.order_by("order"))
+        booking = trip_services.create_booking_request(
+            passenger=passenger_user,
+            trip_id=trip.id,
+            pickup_stop_id=stops[0].id,
+            dropoff_stop_id=stops[-1].id,
+        )
+        trip_services.accept_booking_request(booking_id=booking.id, driver_profile_id=driver_profile.id)
+        trip.departure_time = timezone.now()
+        trip.save(update_fields=["departure_time"])
+        trip_services.start_trip(trip_id=trip.id, driver_profile_id=driver_profile.id)
+
+    def test_creates_driver_location(self, passenger_user, driver_profile, open_trip):
+        self._start_trip(passenger_user=passenger_user, driver_profile=driver_profile, trip=open_trip)
+
+        location = trip_services.upsert_driver_location(
+            trip_id=open_trip.id,
+            driver_profile_id=driver_profile.id,
+            latitude=-5.089,
+            longitude=-42.801,
+        )
+
+        assert location.trip_id == open_trip.id
+        assert location.latitude == -5.089
+        assert location.longitude == -42.801
+        assert DriverLocation.objects.filter(trip=open_trip).exists()
+
+    def test_updates_existing_driver_location(self, passenger_user, driver_profile, open_trip):
+        self._start_trip(passenger_user=passenger_user, driver_profile=driver_profile, trip=open_trip)
+        first = trip_services.upsert_driver_location(
+            trip_id=open_trip.id,
+            driver_profile_id=driver_profile.id,
+            latitude=-5.089,
+            longitude=-42.801,
+        )
+
+        updated = trip_services.upsert_driver_location(
+            trip_id=open_trip.id,
+            driver_profile_id=driver_profile.id,
+            latitude=-5.1,
+            longitude=-42.7,
+        )
+
+        assert updated.id == first.id
+        assert updated.latitude == -5.1
+        assert updated.longitude == -42.7
+
+    def test_rejects_location_update_when_trip_not_in_progress(self, driver_profile, open_trip):
+        with pytest.raises(TripServiceError):
+            trip_services.upsert_driver_location(
+                trip_id=open_trip.id,
+                driver_profile_id=driver_profile.id,
+                latitude=-5.089,
+                longitude=-42.801,
+            )
+
+    def test_rejects_location_update_from_non_owner(
+        self, passenger_user, driver_profile, open_trip, driver_user
+    ):
+        self._start_trip(passenger_user=passenger_user, driver_profile=driver_profile, trip=open_trip)
+        other_driver_user = driver_user.__class__.objects.create_user(username="motorista2", password="x")
+        other_driver_profile = ProfileDriver.objects.create(user=other_driver_user)
+
+        with pytest.raises(PermissionDenied):
+            trip_services.upsert_driver_location(
+                trip_id=open_trip.id,
+                driver_profile_id=other_driver_profile.id,
+                latitude=-5.089,
+                longitude=-42.801,
             )

@@ -86,6 +86,16 @@ class TripCost(models.Model):
  
 	def __str__(self):
 		return f"TripCost(trip={self.trip_id}, total={self.total_cost})"
+
+
+class DriverLocation(models.Model):
+	trip = models.OneToOneField('trip.Trip', on_delete=models.CASCADE, related_name='driver_location')
+	latitude = models.FloatField()
+	longitude = models.FloatField()
+	updated_at = models.DateTimeField(auto_now=True)
+
+	def __str__(self):
+		return f"DriverLocation(trip={self.trip_id}, lat={self.latitude}, lng={self.longitude})"
 		
 		
 class Booking(models.Model):

@@ -1,21 +1,11 @@
 .ride-search-page {
-  --iziline-navy: #263647;
-  --iziline-navy-soft: #31465b;
-  --iziline-teal: #4f8f8c;
-  --iziline-teal-dark: #3f7774;
-  --iziline-teal-light: #e7f1f0;
-  --iziline-page: #f5f8f7;
-  --iziline-border: #d7e1e0;
-  --iziline-muted: #667678;
-
   box-sizing: border-box;
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: 100%;
   width: 100%;
   overflow-x: hidden;
-  background: var(--iziline-page);
-  color: var(--iziline-navy);
-  padding: 32px 24px;
+  background: var(--page);
+  color: var(--ink);
+  padding: 20px 16px 32px;
 }
 
 .ride-search-page *,
@@ -26,7 +16,7 @@
 
 .ride-search-shell {
   display: grid;
-  gap: 22px;
+  gap: 18px;
   width: min(100%, 1040px);
   margin: 0 auto;
 }
@@ -37,44 +27,42 @@
 }
 
 .ride-search-header p {
-  color: var(--iziline-teal-dark);
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0;
+  color: var(--teal-deep);
+  font-size: 0.9rem;
+  font-weight: 600;
   margin: 0;
-  text-transform: uppercase;
 }
 
 .ride-search-header h1 {
-  color: var(--iziline-navy);
-  font-size: clamp(1.6rem, 5vw, 2.25rem);
-  line-height: 1.15;
+  color: var(--ink);
+  font-size: 1.375rem;
+  line-height: 1.2;
   margin: 0;
 }
 
 .ride-search-form,
 .ride-card,
 .ride-results__empty {
-  background: rgba(255, 255, 255, 0.96);
-  border: 1px solid rgba(79, 143, 140, 0.22);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 18px 40px rgba(38, 54, 71, 0.1);
 }
 
 .ride-search-form {
   display: grid;
   gap: 16px;
-  padding: 20px;
+  padding: 16px;
 }
 
 .ride-search-form__grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 180px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr) 160px 160px;
   gap: 16px;
+  align-items: start;
 }
 
 .ride-search-form__error {
-  color: #b42318;
+  color: var(--danger);
   font-size: 0.9rem;
   line-height: 1.35;
 }
@@ -89,31 +77,32 @@
   border-radius: 8px;
   cursor: pointer;
   font-size: 1rem;
-  font-weight: 800;
+  font-weight: 600;
   padding: 0 18px;
-}
-
-.ride-button--primary {
-  background: var(--iziline-teal);
-  border: 1px solid var(--iziline-teal);
-  box-shadow: 0 10px 20px rgba(79, 143, 140, 0.22);
-  color: #ffffff;
-}
-
-.ride-button--primary:hover {
-  background: var(--iziline-teal-dark);
-  border-color: var(--iziline-teal-dark);
+  transition: background-color 0.18s cubic-bezier(0.25, 1, 0.5, 1),
+    border-color 0.18s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .ride-button:disabled {
   cursor: not-allowed;
-  opacity: 0.75;
+  opacity: 0.72;
 }
 
-.ride-button--booked {
-  background: var(--iziline-teal-light);
-  border: 1px solid rgba(79, 143, 140, 0.38);
-  color: var(--iziline-teal-dark);
+.ride-button:focus-visible,
+.ride-card:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+.ride-button--primary {
+  background: var(--teal-deep);
+  border: 1px solid var(--teal-deep);
+  color: #ffffff;
+}
+
+.ride-button--primary:hover:not(:disabled) {
+  background: #346361;
+  border-color: #346361;
 }
 
 .ride-results {
@@ -129,30 +118,65 @@
 }
 
 .ride-results__header h2 {
-  color: var(--iziline-navy);
+  color: var(--ink);
   font-size: 1.25rem;
+  font-weight: 700;
   margin: 0;
 }
 
 .ride-results__header span {
-  color: var(--iziline-muted);
+  color: var(--muted);
   font-size: 0.92rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .ride-results__list {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .ride-card {
   display: grid;
-  gap: 16px;
+  width: 100%;
   min-width: 0;
-  padding: 18px;
+  gap: 16px;
+  padding: 16px;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: border-color 0.18s cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow 0.18s cubic-bezier(0.25, 1, 0.5, 1),
+    transform 0.18s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-.ride-card__driver,
+.ride-card:hover {
+  border-color: rgba(79, 143, 140, 0.42);
+  box-shadow: 0 6px 18px rgba(38, 54, 71, 0.1);
+  transform: translateY(-1px);
+}
+
+.ride-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ride-card__header > span:last-child {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.ride-card__status {
+  background: var(--teal-wash);
+  border-radius: 999px;
+  color: var(--teal-deep);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 5px 10px;
+}
+
 .ride-card__route,
 .ride-card__meta {
   display: grid;
@@ -160,62 +184,36 @@
   min-width: 0;
 }
 
-.ride-card__driver {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-}
-
 .ride-card__route {
   grid-template-columns: 1fr 1fr;
 }
 
 .ride-card__meta {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   padding-top: 14px;
-  border-top: 1px solid var(--iziline-border);
+  border-top: 1px solid var(--border);
 }
 
 .ride-card span,
 .ride-results__empty p {
-  color: var(--iziline-muted);
+  color: var(--muted);
   font-size: 0.88rem;
   line-height: 1.35;
 }
 
 .ride-card strong,
 .ride-results__empty strong {
-  color: var(--iziline-navy);
+  color: var(--ink);
   display: block;
   font-size: 1rem;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
-.ride-card__driver > span {
-  background: var(--iziline-teal-light);
-  border-radius: 8px;
-  color: var(--iziline-teal-dark);
-  font-weight: 800;
-  padding: 8px 10px;
-}
-
-.ride-card__actions {
-  display: grid;
-  gap: 8px;
-  padding-top: 14px;
-  border-top: 1px solid var(--iziline-border);
-}
-
-.ride-card__booking-error {
-  color: #b42318;
-  font-size: 0.88rem;
-  line-height: 1.35;
-}
-
 .ride-results__empty {
   display: grid;
   gap: 6px;
-  padding: 22px;
+  padding: 24px;
   text-align: center;
 }
 
@@ -223,11 +221,19 @@
   margin: 0;
 }
 
-@media (max-width: 780px) {
+@media (min-width: 640px) {
   .ride-search-page {
-    padding: 24px 18px;
+    padding: 32px 24px;
   }
+}
 
+@media (max-width: 900px) {
+  .ride-search-form__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 780px) {
   .ride-search-form__grid,
   .ride-card__route,
   .ride-card__meta {
@@ -251,9 +257,19 @@
   }
 
   .ride-results__header,
-  .ride-card__driver {
+  .ride-card__header {
     align-items: stretch;
     flex-direction: column;
-    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ride-button,
+  .ride-card {
+    transition: none;
+  }
+
+  .ride-card:hover {
+    transform: none;
   }
 }

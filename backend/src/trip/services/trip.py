@@ -17,7 +17,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from core.exceptions import ApplicationError
-from trip.models import Trip, TripStop, Booking, ProfileDriver, Location
+from trip.models import Trip, TripStop, Booking, ProfileDriver, Location, DriverLocation
 from trip.models import TripCost
 from trip import selectors
 from trip.services.routing import get_routing_client, RoutingError
@@ -360,3 +360,29 @@ def finish_trip(*, trip_id: int, driver_profile_id: int) -> Trip:
     # Hook futuro: fechar rateio/cobrança final da viagem (#70/#124).
 
     return trip
+
+
+@transaction.atomic
+def upsert_driver_location(
+    *,
+    trip_id: int,
+    driver_profile_id: int,
+    latitude: float,
+    longitude: float,
+) -> DriverLocation:
+    trip = Trip.objects.select_for_update().get(pk=trip_id)
+
+    if trip.driver_id != driver_profile_id:
+        raise PermissionDenied("Essa viagem não pertence a este motorista.")
+
+    if trip.status != Trip.Status.IN_PROGRESS:
+        raise TripServiceError("Só é possível atualizar a localização com a viagem em andamento.")
+
+    location, _ = DriverLocation.objects.update_or_create(
+        trip=trip,
+        defaults={
+            "latitude": latitude,
+            "longitude": longitude,
+        },
+    )
+    return location

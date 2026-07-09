@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import selectors
-from .models import ProfileDriver, Trip, TripStop, Booking, Location, City, TripCost
+from .models import ProfileDriver, Trip, TripStop, Booking, Location, City, TripCost, DriverLocation
 from .services import (
   create_trip,
   create_booking_request,
@@ -23,6 +23,7 @@ from .services import (
   reject_booking_request,
   start_trip,
   finish_trip,
+  upsert_driver_location,
   update_order,
   new_map_order,
 )
@@ -61,11 +62,26 @@ class TripStopOutputSerializer(serializers.ModelSerializer):
     fields = ["id", "order", "location"]
 
 
+class TripCostOutputSerializer(serializers.ModelSerializer):
+  trip_id = serializers.IntegerField(read_only=True)
+
+  class Meta:
+    model = TripCost
+    fields = [
+      "trip_id",
+      "price_per_km",
+      "distance_km_snapshot",
+      "total_cost",
+      "created_at",
+    ]
+
+
 class TripDetailOutputSerializer(serializers.ModelSerializer):
   origin_city = CityOutputSerializer(read_only=True)
   destine_city = CityOutputSerializer(read_only=True)
   stops = TripStopOutputSerializer(many=True, read_only=True)
   available_seats = serializers.SerializerMethodField()
+  cost = serializers.SerializerMethodField()
 
   class Meta:
     model = Trip
@@ -73,24 +89,37 @@ class TripDetailOutputSerializer(serializers.ModelSerializer):
       "id", "driver", "origin_city", "destine_city",
       "departure_time", "available_spots", "available_seats",
       "status", "line_trip", "total_distance_km", "total_duration_min",
-      "stops", "started_at", "finished_at", "created_at", "updated_at",
+      "cost", "stops", "started_at", "finished_at", "created_at", "updated_at",
     ]
 
   def get_available_seats(self, trip: Trip) -> int:
     return selectors.get_available_seats(trip)
 
+  def get_cost(self, trip: Trip) -> dict | None:
+    try:
+      return TripCostOutputSerializer(trip.cost).data
+    except TripCost.DoesNotExist:
+      return None
+
 
 class TripListOutputSerializer(serializers.ModelSerializer):
   origin_city = CityOutputSerializer(read_only=True)
   destine_city = CityOutputSerializer(read_only=True)
+  cost = serializers.SerializerMethodField()
 
   class Meta:
     model = Trip
     fields = [
       "id", "origin_city", "destine_city",
       "departure_time", "available_spots", "status",
-      "total_distance_km", "total_duration_min",
+      "total_distance_km", "total_duration_min", "cost",
     ]
+
+  def get_cost(self, trip: Trip) -> dict | None:
+    try:
+      return TripCostOutputSerializer(trip.cost).data
+    except TripCost.DoesNotExist:
+      return None
 
 
 class BookingOutputSerializer(serializers.ModelSerializer):
@@ -114,18 +143,12 @@ class TripRouteOutputSerializer(serializers.ModelSerializer):
     ]
 
 
-class TripCostOutputSerializer(serializers.ModelSerializer):
-  trip_id = serializers.IntegerField(read_only=True)
+class DriverLocationOutputSerializer(serializers.ModelSerializer):
+  trip_id = serializers.IntegerField(source="trip.id", read_only=True)
 
   class Meta:
-    model = TripCost
-    fields = [
-      "trip_id",
-      "price_per_km",
-      "distance_km_snapshot",
-      "total_cost",
-      "created_at",
-    ]
+    model = DriverLocation
+    fields = ["trip_id", "latitude", "longitude", "updated_at"]
 
 
 class FareSplitItemOutputSerializer(serializers.Serializer):
@@ -137,7 +160,19 @@ class FareSplitItemOutputSerializer(serializers.Serializer):
 class TripFareSplitOutputSerializer(serializers.Serializer):
   trip_id = serializers.IntegerField()
   total_cost = serializers.DecimalField(max_digits=10, decimal_places=2)
+  covered_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+  driver_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+  confirmed_passengers = serializers.IntegerField()
   split = FareSplitItemOutputSerializer(many=True)
+
+
+class TripFareQuoteOutputSerializer(serializers.Serializer):
+  trip_id = serializers.IntegerField()
+  pickup_stop_id = serializers.IntegerField()
+  dropoff_stop_id = serializers.IntegerField()
+  estimated_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+  total_cost = serializers.DecimalField(max_digits=10, decimal_places=2)
+  current_confirmed_passengers = serializers.IntegerField()
  
 # ---------------------------------------------------------------------------
 # Busca de viagens (passageiro)
@@ -234,13 +269,28 @@ class TripFareSplitApi(APIView):
 
     def get(self, request, trip_id: int):
         trip = selectors.get_trip(trip_id)
-        split = selectors.get_fare_split(trip)
-        data = {
-            "trip_id": trip.id,
-            "total_cost": trip.cost.total_cost,
-            "split": split,
-        }
-        return Response(self.OutputSerializer(data).data)
+        overview = selectors.get_fare_overview(trip)
+        return Response(self.OutputSerializer(overview).data)
+
+
+class TripFareQuoteApi(APIView):
+    permission_classes = [AllowAny]
+    OutputSerializer = TripFareQuoteOutputSerializer
+
+    class QueryParamsSerializer(serializers.Serializer):
+        pickup_stop_id = serializers.IntegerField()
+        dropoff_stop_id = serializers.IntegerField()
+
+    def get(self, request, trip_id: int):
+        params = self.QueryParamsSerializer(data=request.query_params)
+        params.is_valid(raise_exception=True)
+        trip = selectors.get_trip(trip_id)
+        quote = selectors.get_projected_fare_quote(
+            trip=trip,
+            pickup_stop_id=params.validated_data["pickup_stop_id"],
+            dropoff_stop_id=params.validated_data["dropoff_stop_id"],
+        )
+        return Response(self.OutputSerializer(quote).data)
 
 
 class TripRouteApi(APIView):
@@ -300,6 +350,34 @@ class TripFinishApi(APIView):
         driver = _get_driver_profile(request)
         trip = finish_trip(trip_id=trip_id, driver_profile_id=driver.id)
         return Response(self.OutputSerializer(trip).data)
+
+
+class TripDriverLocationApi(APIView):
+    permission_classes = [AllowAny]
+    OutputSerializer = DriverLocationOutputSerializer
+
+    class InputSerializer(serializers.Serializer):
+        latitude = serializers.FloatField(min_value=-90, max_value=90)
+        longitude = serializers.FloatField(min_value=-180, max_value=180)
+
+    def get(self, request, trip_id: int):
+        location = selectors.get_driver_location_for_participant(
+            trip_id=trip_id,
+            user_id=request.user.id,
+        )
+        return Response(self.OutputSerializer(location).data)
+
+    def post(self, request, trip_id: int):
+        payload = self.InputSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+
+        driver = _get_driver_profile(request)
+        location = upsert_driver_location(
+            trip_id=trip_id,
+            driver_profile_id=driver.id,
+            **payload.validated_data,
+        )
+        return Response(self.OutputSerializer(location).data)
 
 
 # ==================
