@@ -1,6 +1,6 @@
 # Contrato de API Atual - Trip
 
-**Data:** 2026-07-08
+**Data:** 2026-07-09
 **Fonte da verdade:** `backend/src/trip/urls.py` e `backend/src/trip/api.py`
 
 ## Escopo
@@ -186,6 +186,18 @@ parte do contrato atual.
 }
 ```
 
+### ChatMessage
+
+```json
+{
+  "id": 1,
+  "sender_id": 9,
+  "sender_name": "Maria Silva",
+  "content": "Oi, podemos combinar o ponto de embarque?",
+  "sent_at": "2026-07-09T12:00:00Z"
+}
+```
+
 ## Endpoints
 
 ### GET `/api/trips/search/`
@@ -298,6 +310,156 @@ Observacoes:
 
 - `intermediate_location_ids` e opcional e default `[]`.
 - O motorista nao vem do body; vem de `request.user.driver_profile`.
+
+### GET `/api/bookings/<booking_id>/messages/`
+
+Lista mensagens do chat da reserva.
+
+Params:
+
+- `booking_id` `int` obrigatorio na URL
+
+Query params:
+
+- `after` `int` opcional
+
+Resposta `200`:
+
+```json
+[
+  {
+    "id": 1,
+    "sender_id": 9,
+    "sender_name": "Maria Silva",
+    "content": "Oi, podemos combinar o ponto de embarque?",
+    "sent_at": "2026-07-09T12:00:00Z"
+  }
+]
+```
+
+Observacoes:
+
+- Exige autenticacao.
+- Esse chat e privado, 1:1.
+- So podem acessar:
+  - o passageiro dono do booking
+  - o motorista da trip desse booking
+- So fica disponivel enquanto o booking estiver com `status=pending`.
+- Se `after` vier, retorna apenas mensagens com `id > after`.
+
+### POST `/api/bookings/<booking_id>/messages/`
+
+Envia mensagem no chat da reserva.
+
+Params:
+
+- `booking_id` `int` obrigatorio na URL
+
+Body:
+
+```json
+{
+  "content": "Posso embarcar na rodoviaria?"
+}
+```
+
+Resposta `201`:
+
+```json
+{
+  "id": 2,
+  "sender_id": 9,
+  "sender_name": "Maria Silva",
+  "content": "Posso embarcar na rodoviaria?",
+  "sent_at": "2026-07-09T12:05:00Z"
+}
+```
+
+Observacoes:
+
+- Exige autenticacao.
+- Usa as mesmas regras de acesso do `GET`.
+- O backend aplica `trim()` no conteudo.
+- Conteudo vazio retorna `400`.
+
+### GET `/api/trips/<trip_id>/messages/`
+
+Lista mensagens do chat da viagem.
+
+Params:
+
+- `trip_id` `int` obrigatorio na URL
+
+Query params:
+
+- `after` `int` opcional
+
+Resposta `200`:
+
+```json
+[
+  {
+    "id": 10,
+    "sender_id": 5,
+    "sender_name": "Carlos Motorista",
+    "content": "Pessoal, saida em 10 minutos.",
+    "sent_at": "2026-07-09T13:00:00Z"
+  },
+  {
+    "id": 11,
+    "sender_id": 9,
+    "sender_name": "Maria Silva",
+    "content": "Perfeito, ja estou no local.",
+    "sent_at": "2026-07-09T13:01:00Z"
+  }
+]
+```
+
+Observacoes:
+
+- Exige autenticacao.
+- Esse chat e em grupo.
+- Todos consultam a mesma conversa da viagem.
+- So podem acessar:
+  - o motorista da trip
+  - passageiros com `Booking` `confirmed` nessa trip
+- Passageiro com booking `pending`, `rejected` ou `cancelled` nao entra.
+- Se `after` vier, retorna apenas mensagens com `id > after`.
+
+### POST `/api/trips/<trip_id>/messages/`
+
+Envia mensagem no chat da viagem.
+
+Params:
+
+- `trip_id` `int` obrigatorio na URL
+
+Body:
+
+```json
+{
+  "content": "Estou chegando."
+}
+```
+
+Resposta `201`:
+
+```json
+{
+  "id": 12,
+  "sender_id": 9,
+  "sender_name": "Maria Silva",
+  "content": "Estou chegando.",
+  "sent_at": "2026-07-09T13:02:00Z"
+}
+```
+
+Observacoes:
+
+- Exige autenticacao.
+- Usa as mesmas regras de acesso do `GET`.
+- O backend aplica `trim()` no conteudo.
+- Conteudo vazio retorna `400`.
 
 ### GET `/api/trips/<trip_id>/`
 
@@ -828,14 +990,19 @@ Resposta `200`:
 ## Regras e comportamento observados no codigo
 
 - Quase todas as views usam `AllowAny`, mas varias dependem de `request.user`.
+- Os endpoints de chat usam `IsAuthenticated`.
 - As acoes de motorista exigem `request.user.driver_profile`.
 - `driver` e `passenger` saem como IDs brutos, nao como objetos aninhados.
 - `available_seats` e calculado dinamicamente por `selectors.get_available_seats`.
 - O endpoint de listagem de booking requests filtra `pending` por padrao.
 - `TripDetail` agora inclui `started_at` e `finished_at`.
 - Existe `DriverLocation`, que guarda apenas a localizacao atual do motorista.
-- Existe uma `TripRouteApi` em `backend/src/trip/api.py`, mas ela nao esta
-  exposta em `backend/src/trip/urls.py`, portanto nao faz parte da API ativa.
+- Existe suporte a chat em dois contextos diferentes:
+  - reserva pendente: `bookings/<booking_id>/messages/`
+  - viagem confirmada: `trips/<trip_id>/messages/`
+- O payload de mensagem e o mesmo para motorista e passageiro; o frontend decide a exibicao comparando `sender_id` com o usuario logado.
+- O chat da reserva e uma conversa privada de negociacao.
+- O chat da viagem e uma conversa em grupo.
 
 ## Regras do ciclo da viagem
 
