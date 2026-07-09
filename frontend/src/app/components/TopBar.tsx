@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Bell, CreditCard, LogOut } from "lucide-react";
+import { CreditCard, LogOut } from "lucide-react";
 import izilineLogo from "../../assets/iziline.png";
 import { useAuth } from "../providers/AuthProvider";
 import "./TopBar.css";
