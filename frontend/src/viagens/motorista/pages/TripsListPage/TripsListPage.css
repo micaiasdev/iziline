@@ -164,6 +164,80 @@
   font-weight: 600;
 }
 
+/* Selo de papel do usuário no card (motorista x passageiro). */
+.trip-summary-card__role {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.trip-summary-card__role--driver {
+  background: var(--teal-wash);
+  color: var(--teal-deep);
+}
+
+.trip-summary-card__role--passenger {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+/* O card de passageiro não é um link: não sugerir clique no corpo do card. */
+.trip-summary-card--passenger:hover {
+  box-shadow: none;
+}
+
+.trip-summary-card__actions {
+  display: grid;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.trip-summary-card__track-link,
+.trip-summary-card__chat-link {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.trip-summary-card__track-link {
+  background: var(--teal-deep);
+  border: 1px solid var(--teal-deep);
+  color: #ffffff;
+}
+
+.trip-summary-card__track-link:hover {
+  background: #346361;
+  border-color: #346361;
+}
+
+.trip-summary-card__chat-link {
+  background: var(--teal-wash);
+  border: 1px solid #cfe3e1;
+  color: var(--teal-deep);
+}
+
+.trip-summary-card__chat-link:hover {
+  background: #dcebe9;
+}
+
+.trip-summary-card__track-link:focus-visible,
+.trip-summary-card__chat-link:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
 .button {
   display: inline-flex;
   align-items: center;
